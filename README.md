@@ -1,8 +1,8 @@
-# urbreath-user-manager
+# tec4maases-user-manager
 
 ## Overview
 
-User manager is responsible to handle authentication process inside UrBreath. It connects with Keycloak and routes all requests to authenticate
+User manager is responsible to handle authentication process inside Tec4MaaSEs. It connects with Keycloak and routes all requests to authenticate
 users, refresh tokens, manage users and thei roles and request information regarding their authorization in the system.
 
 It exploits OAuth2.0 and OpenID protocols integrated with Spring Security with configured Request Filters to increase the security of the application and generate JWT Tokens for users. It utilizes Keycloak libraries to connect directly with Keycloak resource server.
@@ -47,7 +47,7 @@ Utilizes and implements the following concepts:
    spring.security.cors.domains=${CORS_DOMAINS:http://localhost:3000}
    spring.mail.host = ${MAIL_HOST:smtp.gmail.com}
    spring.mail.port = ${MAIL_PORT:587}
-   spring.mail.username = ${MAIL_USERNAME:urbreath}
+   spring.mail.username = ${MAIL_USERNAME:tec4maases}
    spring.mail.password = ${MAIL_APP_PASSWORD:###}
    app.frontend.url = ${APP_FRONTEND_URL:http://localhost:3000}
    ```
@@ -81,13 +81,13 @@ For local deployment Docker containers can be utilized to deploy the microservic
 3. Build the Docker container:
 
     ```sh
-    docker build -t urbreath-user-manager:latest .
+    docker build -t tec4maases-user-manager:latest .
     ```
 
 4. Run the Docker container including the environmental variables:
 
     ```sh
-    docker run -d -p 8094:8094 --name urbreath-user-manager urbreath-user-manager:latest
+    docker run -d -p 8094:8094 --name tec4maases-user-manager tec4maases-user-manager:latest
     ```
 
    ``NOTE``: The following environmental variable should be configured:
@@ -110,7 +110,7 @@ For local deployment Docker containers can be utilized to deploy the microservic
 5. To stop container run:
 
     ```sh
-    docker stop urbreath-user-manager
+    docker stop tec4maases-user-manager
     ```
 
 6. To deploy Keycloak with PostgreSQL just execute via Docker the following command in the project directory:
