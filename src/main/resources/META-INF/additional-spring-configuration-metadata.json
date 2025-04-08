@@ -1,0 +1,117 @@
+{"properties": [
+  {
+    "name": "keycloak.token-uri",
+    "type": "java.lang.String",
+    "description": "A description for 'keycloak.token-uri'"
+  },
+  {
+    "name": "keycloak.client-id",
+    "type": "java.lang.String",
+    "description": "A description for 'keycloak.client-id'"
+  },
+  {
+    "name": "keycloak.client-secret",
+    "type": "java.lang.String",
+    "description": "A description for 'keycloak.client-secret'"
+  },
+  {
+    "name": "keycloak.admin-username",
+    "type": "java.lang.String",
+    "description": "A description for 'keycloak.admin-username'"
+  },
+  {
+    "name": "keycloak.admin-password",
+    "type": "java.lang.String",
+    "description": "A description for 'keycloak.admin-password'"
+  },
+  {
+    "name": "keycloak.realm",
+    "type": "java.lang.String",
+    "description": "A description for 'keycloak.realm'"
+  },
+  {
+    "name": "keycloak.auth-server-url",
+    "type": "java.lang.String",
+    "description": "A description for 'keycloak.auth-server-url'"
+  },
+  {
+    "name": "spring.thread-executor",
+    "type": "java.lang.String",
+    "description": "A description for 'spring.thread-executor'"
+  },
+  {
+    "name": "keycloak.admin.uri",
+    "type": "java.lang.String",
+    "description": "A description for 'keycloak.admin.uri'"
+  },
+  {
+    "name": "spring.keycloak.url",
+    "type": "java.lang.String",
+    "description": "A description for 'spring.keycloak.url'"
+  },
+  {
+    "name": "test.user.password",
+    "type": "java.lang.String",
+    "description": "A description for 'test.user.password'"
+  },
+  {
+    "name": "test.user.email",
+    "type": "java.lang.String",
+    "description": "A description for 'test.user.email'"
+  },
+  {
+    "name": "keycloak.api.role-path",
+    "type": "java.lang.String",
+    "description": "A description for 'keycloak.api.role-path'"
+  },
+  {
+    "name": "keycloak.api.client-path",
+    "type": "java.lang.String",
+    "description": "A description for 'keycloak.api.client-path'"
+  },
+  {
+    "name": "keycloak.api.user-path",
+    "type": "java.lang.String",
+    "description": "A description for 'keycloak.api.user-path'"
+  },
+  {
+    "name": "keycloak.api.group-path",
+    "type": "java.lang.String",
+    "description": "A description for 'keycloak.api.group-path'"
+  },
+  {
+    "name": "app.frontend.url",
+    "type": "java.lang.String",
+    "description": "A description for 'app.frontend.url'"
+  },
+  {
+    "name": "keycloak.default.realm.role",
+    "type": "java.lang.String",
+    "description": "A description for 'keycloak.default.realm.role'"
+  },
+  {
+    "name": "spring.security.cors.domains",
+    "type": "java.lang.String",
+    "description": "A description for 'spring.security.cors.domains'"
+  },
+  {
+    "name": "build.version",
+    "type": "java.lang.String",
+    "description": "A description for 'build.version'"
+  },
+  {
+    "name": "application.url",
+    "type": "java.lang.String",
+    "description": "A description for 'application.url'"
+  },
+  {
+    "name": "keycloak.excluded-roles.admin",
+    "type": "java.lang.String",
+    "description": "A description for 'keycloak.excluded-roles.admin'"
+  },
+  {
+    "name": "keycloak.excluded-roles.super-admin",
+    "type": "java.lang.String",
+    "description": "A description for 'keycloak.excluded-roles.super-admin'"
+  }
+]}

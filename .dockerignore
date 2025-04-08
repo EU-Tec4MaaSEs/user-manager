@@ -1,0 +1,6 @@
+/target
+/.github
+.gitignore
+src/main/resources/application-local.properties
+HELP.md
+.env
