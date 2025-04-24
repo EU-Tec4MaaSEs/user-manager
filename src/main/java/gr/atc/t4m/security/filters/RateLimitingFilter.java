@@ -19,7 +19,10 @@ import java.time.Duration;
 public class RateLimitingFilter extends OncePerRequestFilter {
     private final Bucket bucket;
 
-    public RateLimitingFilter() {
+    private final ObjectMapper objectMapper;
+
+    public RateLimitingFilter(ObjectMapper objectMapper) {
+        this.objectMapper = objectMapper;
         this.bucket = Bucket.builder()
                 .addLimit(limit -> limit.capacity(100).refillGreedy(20, Duration.ofMinutes(1)))
                 .build();
@@ -34,8 +37,7 @@ public class RateLimitingFilter extends OncePerRequestFilter {
             response.setStatus(HttpStatus.TOO_MANY_REQUESTS.value());
             response.setContentType("application/json");
             BaseAppResponse<String> responseMessage = BaseAppResponse.error("Too many requests. Please try again later.", "Rate Limit Exceeded");
-            ObjectMapper mapper = new ObjectMapper();
-            mapper.writeValue(response.getWriter(), responseMessage);
+            objectMapper.writeValue(response.getWriter(), responseMessage);
         }
 
     }

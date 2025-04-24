@@ -27,6 +27,12 @@ public class SecurityConfig {
         @Value("${spring.security.cors.domains}")
         private String corsDomainsRaw;
 
+        private final RateLimitingFilter rateLimitingFilter;
+
+        public SecurityConfig(RateLimitingFilter rateLimitingFilter) {
+                this.rateLimitingFilter = rateLimitingFilter;
+        }
+
         /**
          * Initialize and Configure Security Filter Chain of HTTP connection
          * 
@@ -48,7 +54,7 @@ public class SecurityConfig {
                                 // Configure CSRF Token
                                 .csrf(AbstractHttpConfigurer::disable)
                                 // Rate Limit Filter
-                                .addFilterBefore(new RateLimitingFilter(), SecurityContextHolderFilter.class)
+                                .addFilterBefore(rateLimitingFilter, SecurityContextHolderFilter.class)
                                 .exceptionHandling(exc -> exc.authenticationEntryPoint(entryPoint))
                                 // HTTP Requests authorization properties on URLs
                                 .authorizeHttpRequests(authorizeRequests -> authorizeRequests
