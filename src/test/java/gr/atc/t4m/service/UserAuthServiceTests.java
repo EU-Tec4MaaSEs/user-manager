@@ -37,7 +37,7 @@ import gr.atc.t4m.dto.CredentialsDto;
 import static gr.atc.t4m.exception.CustomExceptions.*;
 
 @ExtendWith(MockitoExtension.class)
-public class UserAuthServiceTests {
+class UserAuthServiceTests {
 
     @MockitoBean
     private JwtDecoder jwtDecoder;

@@ -28,7 +28,7 @@ import gr.atc.t4m.service.interfaces.IUserAuthService;
 @SpringBootTest
 @AutoConfigureMockMvc
 @EnableMethodSecurity(prePostEnabled = true)
-public class UserControllerTests {
+class UserControllerTests {
 
     @MockitoBean
     private JwtDecoder jwtDecoder;
