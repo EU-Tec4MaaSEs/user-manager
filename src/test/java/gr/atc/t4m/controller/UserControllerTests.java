@@ -1,11 +1,13 @@
 package gr.atc.t4m.controller;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import gr.atc.t4m.service.interfaces.IUserManagementService;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
+import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
@@ -16,31 +18,34 @@ import org.springframework.test.web.servlet.ResultActions;
 import static org.hamcrest.CoreMatchers.is;
 
 import static org.mockito.BDDMockito.given;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-import gr.atc.t4m.dto.AuthenticationResponseDto;
-import gr.atc.t4m.dto.CredentialsDto;
+import gr.atc.t4m.dto.operations.AuthenticationResponseDto;
+import gr.atc.t4m.dto.operations.CredentialsDto;
 import static gr.atc.t4m.exception.CustomExceptions.*;
 import gr.atc.t4m.service.interfaces.IUserAuthService;
 
-@SpringBootTest
-@AutoConfigureMockMvc
-@EnableMethodSecurity(prePostEnabled = true)
+@WebMvcTest(controllers = UserController.class)
+@AutoConfigureMockMvc(addFilters = false)
 class UserControllerTests {
 
     @MockitoBean
     private JwtDecoder jwtDecoder;
+
+    @MockitoBean
+    private IUserAuthService userAuthService;
+
+    @MockitoBean
+    private IUserManagementService userManagerService;
 
     @Autowired
     private MockMvc mockMvc;
 
     @Autowired
     private ObjectMapper objectMapper;
-
-    @MockitoBean
-    private IUserAuthService userAuthService;
 
     private static CredentialsDto credentials;
     private static AuthenticationResponseDto authenticationResponse;
@@ -68,13 +73,15 @@ class UserControllerTests {
         given(userAuthService.authenticate(credentials)).willReturn(authenticationResponse);
 
         // When
-        ResultActions response = mockMvc.perform(post("/api/users/authenticate").contentType(MediaType.APPLICATION_JSON)
+        ResultActions response = mockMvc.perform(post("/api/users/authenticate")
+                .with(csrf())
+                .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(credentials)));
 
         // Then
         response.andExpect(status().isOk()).andExpect(jsonPath("$.success", is(true)))
                 .andExpect(jsonPath("$.message", is("Authentication token generated successfully")))
-                .andExpect(jsonPath("$.data.accessToken", is(authenticationResponse.getAccessToken())));
+                .andExpect(jsonPath("$.data.accessToken", is(authenticationResponse.accessToken())));
 
     }
 
@@ -91,7 +98,7 @@ class UserControllerTests {
         // Then
         response.andExpect(status().isOk()).andExpect(jsonPath("$.success", is(true)))
                 .andExpect(jsonPath("$.message", is("Authentication token generated successfully")))
-                .andExpect(jsonPath("$.data.accessToken", is(authenticationResponse.getAccessToken())));
+                .andExpect(jsonPath("$.data.accessToken", is(authenticationResponse.accessToken())));
     }
 
     @DisplayName("Authenticate User: Invalid Format of Credentials")

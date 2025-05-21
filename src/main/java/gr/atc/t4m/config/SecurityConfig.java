@@ -10,8 +10,9 @@ import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.config.http.SessionCreationPolicy;
+import org.springframework.security.oauth2.server.resource.web.authentication.BearerTokenAuthenticationFilter;
 import org.springframework.security.web.SecurityFilterChain;
-import org.springframework.security.web.context.SecurityContextHolderFilter;
+import org.springframework.security.web.authentication.www.BasicAuthenticationFilter;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
@@ -29,13 +30,16 @@ public class SecurityConfig {
 
         private final RateLimitingFilter rateLimitingFilter;
 
-        public SecurityConfig(RateLimitingFilter rateLimitingFilter) {
+        private final JwtAttributesValidatorFilter jwtAttributesValidatorFilter;
+
+        public SecurityConfig(RateLimitingFilter rateLimitingFilter, JwtAttributesValidatorFilter jwtAttributesValidatorFilter) {
                 this.rateLimitingFilter = rateLimitingFilter;
+                this.jwtAttributesValidatorFilter = jwtAttributesValidatorFilter;
         }
 
         /**
          * Initialize and Configure Security Filter Chain of HTTP connection
-         * 
+         *
          * @param http       HttpSecurity
          * @param entryPoint UnauthorizedEntryPoint -> To add proper API Response to the
          *                   authorized request
@@ -54,21 +58,24 @@ public class SecurityConfig {
                                 // Configure CSRF Token
                                 .csrf(AbstractHttpConfigurer::disable)
                                 // Rate Limit Filter
-                                .addFilterBefore(rateLimitingFilter, SecurityContextHolderFilter.class)
+                                .addFilterBefore(rateLimitingFilter, BasicAuthenticationFilter.class)
                                 .exceptionHandling(exc -> exc.authenticationEntryPoint(entryPoint))
                                 // HTTP Requests authorization properties on URLs
                                 .authorizeHttpRequests(authorizeRequests -> authorizeRequests
-                                                .requestMatchers("/api/users/authenticate", 
-                                                "/api/users/refresh-token", 
-                                                "/api/users/activate", 
-                                                "/api/users/reset-password", 
-                                                "/api/users/forgot-password", 
+                                                .requestMatchers("/api/users/authenticate",
+                                                "/api/users/refresh-token",
+                                                "/api/users/activate",
+                                                "/api/users/reset-password",
+                                                "/api/users/forgot-password",
                                                 "/api/user-manager/**")
                                                 .permitAll()
                                                 .anyRequest().authenticated())
                                 // JWT Authentication Configuration to use with Keycloak
                                 .oauth2ResourceServer(oauth2ResourceServerCustomizer -> oauth2ResourceServerCustomizer
                                         .jwt(jwtCustomizer -> jwtCustomizer.jwtAuthenticationConverter(jwtAuthConverter)));
+
+                // Validate proper JWT Attributes
+                http.addFilterAfter(jwtAttributesValidatorFilter, BearerTokenAuthenticationFilter.class);
                 return http.build();
         }
 

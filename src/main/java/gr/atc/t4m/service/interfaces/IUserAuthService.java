@@ -1,7 +1,7 @@
 package gr.atc.t4m.service.interfaces;
 
-import gr.atc.t4m.dto.AuthenticationResponseDto;
-import gr.atc.t4m.dto.CredentialsDto;
+import gr.atc.t4m.dto.operations.AuthenticationResponseDto;
+import gr.atc.t4m.dto.operations.CredentialsDto;
 
 public interface IUserAuthService {
 

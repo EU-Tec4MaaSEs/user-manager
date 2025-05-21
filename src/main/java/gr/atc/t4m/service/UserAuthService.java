@@ -1,10 +1,10 @@
 package gr.atc.t4m.service;
 
-import gr.atc.t4m.dto.AuthenticationResponseDto;
-import gr.atc.t4m.dto.CredentialsDto;
+import gr.atc.t4m.dto.operations.AuthenticationResponseDto;
+import gr.atc.t4m.dto.operations.CredentialsDto;
+import gr.atc.t4m.config.properties.KeycloakProperties;
 import gr.atc.t4m.service.interfaces.IUserAuthService;
 import org.slf4j.Logger;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.http.*;
 import org.springframework.stereotype.Service;
@@ -22,14 +22,16 @@ import static gr.atc.t4m.exception.CustomExceptions.*;
 public class UserAuthService implements IUserAuthService {
 
     private static final Logger log = org.slf4j.LoggerFactory.getLogger(UserAuthService.class);
-    @Value("${keycloak.token-uri}")
-    private String tokenUri;
 
-    @Value("${keycloak.client-id}")
-    private String clientName;
+    private final String tokenUri;
+    private final String clientName;
+    private final String clientSecret;
 
-    @Value("${keycloak.client-secret}")
-    private String clientSecret;
+    public UserAuthService(KeycloakProperties keycloakProperties) {
+        this.tokenUri = keycloakProperties.tokenUri();
+        this.clientName = keycloakProperties.clientId();
+        this.clientSecret = keycloakProperties.clientSecret();
+    }
 
     private final RestTemplate restTemplate = new RestTemplate();
 
@@ -110,8 +112,8 @@ public class UserAuthService implements IUserAuthService {
         if (refreshToken == null) {
             body.add(CLIENT_ID, clientName);
             body.add(CLIENT_SECRET, clientSecret);
-            body.add(USERNAME, credentials.getEmail());
-            body.add(GRANT_TYPE_PASSWORD, credentials.getPassword());
+            body.add(USERNAME, credentials.email());
+            body.add(GRANT_TYPE_PASSWORD, credentials.password());
             body.add(GRANT_TYPE, GRANT_TYPE_PASSWORD);
             body.add(SCOPE, PROTOCOL);
         } else {

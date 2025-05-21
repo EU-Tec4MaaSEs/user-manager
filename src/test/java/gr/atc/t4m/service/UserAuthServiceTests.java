@@ -5,6 +5,7 @@ import java.lang.reflect.Method;
 import java.util.HashMap;
 import java.util.Map;
 
+import gr.atc.t4m.config.properties.KeycloakProperties;
 import org.junit.jupiter.api.*;
 import org.junit.jupiter.api.extension.ExtendWith;
 
@@ -19,6 +20,7 @@ import org.mockito.Mockito;
 import static org.mockito.Mockito.when;
 
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
@@ -31,8 +33,8 @@ import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.util.MultiValueMap;
 import org.springframework.web.client.RestClientException;
 import org.springframework.web.client.RestTemplate;
-import gr.atc.t4m.dto.AuthenticationResponseDto;
-import gr.atc.t4m.dto.CredentialsDto;
+import gr.atc.t4m.dto.operations.AuthenticationResponseDto;
+import gr.atc.t4m.dto.operations.CredentialsDto;
 
 import static gr.atc.t4m.exception.CustomExceptions.*;
 
@@ -44,6 +46,9 @@ class UserAuthServiceTests {
 
     @Mock
     private RestTemplate restTemplate;
+
+    @Mock
+    private KeycloakProperties keycloakProperties;
 
     @InjectMocks
     private UserAuthService userAuthService;
@@ -104,11 +109,11 @@ class UserAuthServiceTests {
 
         // Then
         assertNotNull(result);
-        assertEquals(MOCK_TOKEN, result.getAccessToken());
-        assertEquals(1800, result.getExpiresIn());
-        assertEquals("JWT", result.getTokenType());
-        assertEquals(MOCK_TOKEN, result.getRefreshToken());
-        assertEquals(1800, result.getRefreshExpiresIn());
+        assertEquals(MOCK_TOKEN, result.accessToken());
+        assertEquals(1800, result.expiresIn());
+        assertEquals("JWT", result.tokenType());
+        assertEquals(MOCK_TOKEN, result.refreshToken());
+        assertEquals(1800, result.refreshExpiresIn());
     }
 
     @DisplayName("Authenticate user: Failure with RestClientException")
@@ -148,11 +153,11 @@ class UserAuthServiceTests {
 
         // Then
         assertNotNull(result);
-        assertEquals(MOCK_TOKEN, result.getAccessToken());
-        assertEquals(1800, result.getExpiresIn());
-        assertEquals("JWT", result.getTokenType());
-        assertEquals(MOCK_TOKEN, result.getRefreshToken());
-        assertEquals(1800, result.getRefreshExpiresIn());
+        assertEquals(MOCK_TOKEN, result.accessToken());
+        assertEquals(1800, result.expiresIn());
+        assertEquals("JWT", result.tokenType());
+        assertEquals(MOCK_TOKEN, result.refreshToken());
+        assertEquals(1800, result.refreshExpiresIn());
     }
 
     @DisplayName("Refresh Token: Failure with RestClientException")
@@ -187,7 +192,7 @@ class UserAuthServiceTests {
         // Then
         MultiValueMap<String, String> body = result.getBody();
         assertNotNull(body);
-        assertEquals(credentials.getEmail(), body.getFirst(USERNAME));
+        assertEquals(credentials.email(), body.getFirst(USERNAME));
         assertEquals(GRANT_TYPE_PASSWORD, body.getFirst(GRANT_TYPE));
         assertEquals(PROTOCOL, body.getFirst(SCOPE));
     }
@@ -239,11 +244,11 @@ class UserAuthServiceTests {
 
         // Then
         assertNotNull(result);
-        assertEquals(MOCK_TOKEN, result.getAccessToken());
-        assertEquals(1800, result.getExpiresIn());
-        assertEquals("JWT", result.getTokenType());
-        assertEquals(MOCK_TOKEN, result.getRefreshToken());
-        assertEquals(1800, result.getRefreshExpiresIn());
+        assertEquals(MOCK_TOKEN, result.accessToken());
+        assertEquals(1800, result.expiresIn());
+        assertEquals("JWT", result.tokenType());
+        assertEquals(MOCK_TOKEN, result.refreshToken());
+        assertEquals(1800, result.refreshExpiresIn());
     }
 
     @DisplayName("ParseAuthenticationResponse: Null Response")
