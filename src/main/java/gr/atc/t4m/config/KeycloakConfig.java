@@ -3,14 +3,12 @@ package gr.atc.t4m.config;
 import org.keycloak.OAuth2Constants;
 import org.keycloak.admin.client.Keycloak;
 import org.keycloak.admin.client.KeycloakBuilder;
-import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
-import gr.atc.t4m.keycloak.KeycloakProperties;
+import gr.atc.t4m.config.properties.KeycloakProperties;
 
 @Configuration
-@EnableConfigurationProperties({KeycloakProperties.class})
 public class KeycloakConfig {
 
     private final KeycloakProperties keycloakProperties;
@@ -22,11 +20,11 @@ public class KeycloakConfig {
     @Bean
     public Keycloak keycloakAdminClient() {
         return KeycloakBuilder.builder()
-            .serverUrl(keycloakProperties.getUrl())
+            .serverUrl(keycloakProperties.url())
             .realm("master")
             .clientId("admin-cli")
-            .username(keycloakProperties.getAdminUsername())
-            .password(keycloakProperties.getAdminPassword())
+            .username(keycloakProperties.adminUsername())
+            .password(keycloakProperties.adminPassword())
             .grantType(OAuth2Constants.PASSWORD)
             .build();
     }

@@ -5,47 +5,54 @@ import gr.atc.t4m.controller.BaseAppResponse;
 import gr.atc.t4m.util.JwtUtils;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
-import jakarta.servlet.ServletRequest;
-import jakarta.servlet.ServletResponse;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
+import org.springframework.lang.NonNull;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationToken;
-import org.springframework.web.filter.GenericFilterBean;
+import org.springframework.stereotype.Component;
+import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
 
-public class JwtAttributesValidatorFilter extends GenericFilterBean {
+@Component
+@Slf4j
+public class JwtAttributesValidatorFilter extends OncePerRequestFilter {
+
+    private final ObjectMapper objectMapper;
+
+    public JwtAttributesValidatorFilter(ObjectMapper objectMapper) {
+        this.objectMapper = objectMapper;
+    }
 
     @Override
-    public void doFilter(ServletRequest request, ServletResponse response, FilterChain chain)
+    public void doFilterInternal(@NonNull HttpServletRequest request, @NonNull HttpServletResponse response, @NonNull FilterChain chain)
             throws IOException, ServletException {
 
         if (SecurityContextHolder.getContext().getAuthentication() instanceof JwtAuthenticationToken jwtToken) {
             Jwt jwt = jwtToken.getToken();
 
             // Extract required fields
-            String role = JwtUtils.extractPilotRole(jwt);
+            String userRole = JwtUtils.extractUserRole(jwt);
             String pilotCode = JwtUtils.extractPilotCode(jwt);
             String pilotRole = JwtUtils.extractPilotRole(jwt);
 
             // Validate presence of required claims
-            if (isEmpty(role) || isEmpty(pilotCode) || isEmpty(pilotRole)) {
-                HttpServletResponse httpResponse = (HttpServletResponse) response;
-
+            if (isEmpty(userRole) || isEmpty(pilotCode) || isEmpty(pilotRole)) {
                 // Headers
-                httpResponse.setStatus(HttpStatus.FORBIDDEN.value());
-                httpResponse.setContentType("application/json");
-                httpResponse.setCharacterEncoding("UTF-8");
+                response.setStatus(HttpStatus.FORBIDDEN.value());
+                response.setContentType("application/json");
+                response.setCharacterEncoding("UTF-8");
 
                 // Response
-                BaseAppResponse<String> responseMessage = BaseAppResponse.error("Invalid JWT Token Attributes", "Some information regarding Pilot Code and Role are missing from the token");
-                ObjectMapper mapper = new ObjectMapper();
-                String jsonResponse = mapper.writeValueAsString(responseMessage);
+                BaseAppResponse<String> responseMessage = BaseAppResponse.error("Invalid JWT token attributes", "Some information regarding Pilot Code, Pilot Role or User Role are missing from the token");
+                String jsonResponse = objectMapper.writeValueAsString(responseMessage);
 
-                httpResponse.getWriter().write(jsonResponse);
-                httpResponse.getWriter().flush();
+                response.getWriter().write(jsonResponse);
+                response.getWriter().flush();
                 return;
             }
         }

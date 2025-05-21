@@ -35,7 +35,6 @@ public class GlobalExceptionHandler {
      * Used for Request Body Validations in Requests
      */
     @ExceptionHandler(MethodArgumentNotValidException.class)
-    @ResponseStatus(HttpStatus.BAD_REQUEST)
     public ResponseEntity<BaseAppResponse<Map<String, String>>> validationExceptionHandler(
             @NotNull MethodArgumentNotValidException ex) {
         Map<String, String> errors = new HashMap<>();
@@ -52,7 +51,6 @@ public class GlobalExceptionHandler {
      * Validation fails on request parameters, path variables, or method arguments
      */
     @ExceptionHandler(ConstraintViolationException.class)
-    @ResponseStatus(HttpStatus.BAD_REQUEST)
     public ResponseEntity<BaseAppResponse<Map<String, String>>> constraintValidationExceptionHandler(
             @NotNull ConstraintViolationException ex) {
         Map<String, String> errors = new HashMap<>();
@@ -88,7 +86,6 @@ public class GlobalExceptionHandler {
     }
 
     @ExceptionHandler(NoResourceFoundException.class)
-    @ResponseStatus(HttpStatus.NOT_FOUND)
     public ResponseEntity<BaseAppResponse<String>> resourceNotFoundHandler(
             @NonNull NoResourceFoundException ex) {
         return new ResponseEntity<>(BaseAppResponse.error("Resource not found", ex.getMessage()),
@@ -96,7 +93,6 @@ public class GlobalExceptionHandler {
     }
 
     @ExceptionHandler(MissingServletRequestParameterException.class)
-    @ResponseStatus(HttpStatus.BAD_REQUEST)
     public ResponseEntity<BaseAppResponse<String>> inputNotProvidedExceptionHandler(
             @NonNull MissingServletRequestParameterException ex) {
         return new ResponseEntity<>(
@@ -108,7 +104,6 @@ public class GlobalExceptionHandler {
      * Handles validation for Method Parameters
      */
     @ExceptionHandler(HandlerMethodValidationException.class)
-    @ResponseStatus(HttpStatus.BAD_REQUEST)
     public ResponseEntity<BaseAppResponse<String>> validationExceptionHandler(
             @NonNull HandlerMethodValidationException ex) {
         return new ResponseEntity<>(BaseAppResponse.error(VALIDATION_ERROR, "Invalid input field"),
@@ -116,7 +111,6 @@ public class GlobalExceptionHandler {
     }
 
     @ExceptionHandler(AccessDeniedException.class)
-    @ResponseStatus(HttpStatus.FORBIDDEN)
     public ResponseEntity<BaseAppResponse<Map<String, String>>> handleAccessDeniedException(
             @NotNull AccessDeniedException ex) {
         return new ResponseEntity<>(BaseAppResponse.error(
@@ -124,7 +118,6 @@ public class GlobalExceptionHandler {
     }
 
     @ExceptionHandler(InvalidAuthenticationCredentialsException.class)
-    @ResponseStatus(HttpStatus.UNAUTHORIZED)
     public ResponseEntity<BaseAppResponse<Map<String, String>>> handleInvalidAuthenticationCredentialsException(@NotNull InvalidAuthenticationCredentialsException ex) {
         return new ResponseEntity<>(
                 BaseAppResponse.error("Authentication failed", "Invalid authorization credentials provided"),
@@ -132,28 +125,24 @@ public class GlobalExceptionHandler {
     }
 
     @ExceptionHandler(InvalidActivationAttributesException.class)
-    @ResponseStatus(HttpStatus.FORBIDDEN)
     public ResponseEntity<BaseAppResponse<Map<String, String>>> handleInvalidActivationAttributesException(
             @NotNull InvalidActivationAttributesException ex) {
         return new ResponseEntity<>(BaseAppResponse.error(ex.getMessage()), HttpStatus.FORBIDDEN);
     }
 
     @ExceptionHandler(InvalidRefreshTokenException.class)
-    @ResponseStatus(HttpStatus.FORBIDDEN)
     public ResponseEntity<BaseAppResponse<Map<String, String>>> handleInvalidRefreshTokenException(
             @NotNull InvalidRefreshTokenException ex) {
         return new ResponseEntity<>(BaseAppResponse.error(ex.getMessage()), HttpStatus.FORBIDDEN);
     }
 
     @ExceptionHandler(KeycloakException.class)
-    @ResponseStatus(HttpStatus.INTERNAL_SERVER_ERROR)
     public ResponseEntity<BaseAppResponse<String>> handleKeycloakException(@NotNull KeycloakException ex) {
         BaseAppResponse<String> response = BaseAppResponse.error(ex.getMessage());
         return new ResponseEntity<>(response, HttpStatus.INTERNAL_SERVER_ERROR);
     }
 
     @ExceptionHandler(DataRetrievalException.class)
-    @ResponseStatus(HttpStatus.NOT_FOUND)
     public ResponseEntity<BaseAppResponse<String>> handleDataRetrievalException(
             @NotNull DataRetrievalException ex) {
         BaseAppResponse<String> response = BaseAppResponse.error("Unable to retrieve requested data",
@@ -162,7 +151,6 @@ public class GlobalExceptionHandler {
     }
 
     @ExceptionHandler(Exception.class)
-    @ResponseStatus(HttpStatus.INTERNAL_SERVER_ERROR)
     public ResponseEntity<BaseAppResponse<String>> handleGeneralException(@NotNull Exception ex) {
         return new ResponseEntity<>(BaseAppResponse.error("An unexpected error occurred", ex.getMessage()),
                 HttpStatus.INTERNAL_SERVER_ERROR);
@@ -178,7 +166,7 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(ResourceNotPresentException.class)
     @ResponseStatus(HttpStatus.CONFLICT)
     public ResponseEntity<BaseAppResponse<String>> handleResourceNotPresentException(@NotNull ResourceNotPresentException ex) {
-        return new ResponseEntity<>(BaseAppResponse.error("Resource already exists", ex.getMessage()),
+        return new ResponseEntity<>(BaseAppResponse.error("Resource not found", ex.getMessage()),
                 HttpStatus.CONFLICT);
     }
 
