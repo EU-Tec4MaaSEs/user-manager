@@ -53,7 +53,7 @@ class UserAuthServiceTests {
     @InjectMocks
     private UserAuthService userAuthService;
 
-    private static CredentialsDto credentials;
+    private CredentialsDto credentials;
 
     private static final String MOCK_TOKEN = "mock-token";
     private static final String MOCK_EMAIL = "mockemail@test.com";
@@ -69,17 +69,14 @@ class UserAuthServiceTests {
     private static final String SCOPE = "scope";
     private static final String PROTOCOL = "openid";
 
-    @BeforeAll
-    static void setup() {
-        credentials = CredentialsDto.builder().email(MOCK_EMAIL).password(MOCK_PASSWORD).build();
-    }
-
     @BeforeEach
     void initialSetup() {
         ReflectionTestUtils.setField(userAuthService, "tokenUri", MOCK_TOKEN_URI);
         ReflectionTestUtils.setField(userAuthService, "clientName", MOCK_CLIENT_ID);
         ReflectionTestUtils.setField(userAuthService, "clientSecret", MOCK_CLIENT_SECRET);
         ReflectionTestUtils.setField(userAuthService, "restTemplate", restTemplate);
+
+        credentials = new CredentialsDto(MOCK_EMAIL, MOCK_PASSWORD);
     }
 
     @AfterEach

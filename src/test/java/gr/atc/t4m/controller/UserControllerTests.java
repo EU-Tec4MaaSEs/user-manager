@@ -2,15 +2,13 @@ package gr.atc.t4m.controller;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import gr.atc.t4m.service.interfaces.IUserManagementService;
-import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
-import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
-import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.oauth2.jwt.JwtDecoder;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
@@ -47,23 +45,14 @@ class UserControllerTests {
     @Autowired
     private ObjectMapper objectMapper;
 
-    private static CredentialsDto credentials;
-    private static AuthenticationResponseDto authenticationResponse;
+    private CredentialsDto credentials;
+    private AuthenticationResponseDto authenticationResponse;
 
-    @BeforeAll
-    static void setup() {
-        credentials = CredentialsDto.builder()
-                .email("test@test.com")
-                .password("TestPass123@")
-                .build();
+    @BeforeEach
+    void setup() {
+        credentials = new CredentialsDto("test@test.com","TestPass123@");
 
-        authenticationResponse = AuthenticationResponseDto.builder()
-                .accessToken("accessToken")
-                .expiresIn(1800)
-                .tokenType("JWT")
-                .refreshToken("refreshToken")
-                .refreshExpiresIn(1800)
-                .build();
+        authenticationResponse = new AuthenticationResponseDto("accessToken", 1800, "JWT", "refreshToken", 1800);
     }
 
     @DisplayName("Authenticate User: Success")

@@ -235,10 +235,7 @@ public class AdminControllerTests {
     @Test
     void givenValidJwtAndNewRoleWithMissingFields_whenCreateNewUserRole_thenReturnBadRequest() throws Exception {
         // Given
-        UserRoleCreationDto role = UserRoleCreationDto.builder()
-                .name("TestRole")
-                .pilotRole("ADMIN")
-                .build();
+        UserRoleCreationDto role = new UserRoleCreationDto("TestRole", null, "ADMIN", null);
 
         // Mock JWT authentication
         JwtAuthenticationToken jwtAuthenticationToken = new JwtAuthenticationToken(adminJwt, List.of(new SimpleGrantedAuthority("ROLE_ADMIN")));
@@ -497,7 +494,7 @@ public class AdminControllerTests {
     @Test
     void givenPilotInformation_whenCreateNewPilotInSystem_thenReturnSuccess() throws Exception {
         // Given
-        PilotCreationDto pilotData = PilotCreationDto.builder().name("TEST_PILOT").subGroups(List.of("ADMIN").toArray(new String[0])).build();
+        PilotCreationDto pilotData = new PilotCreationDto("TEST_PILOT", List.of("ADMIN"));
 
         // Formulate JWT
         Jwt token = createMockJwtToken("SUPER_ADMIN", "SUPER_ADMIN", "ALL");
@@ -523,7 +520,7 @@ public class AdminControllerTests {
     @Test
     void givenPilotInformationAndInvalidJWT_whenCreateNewPilotInSystem_thenReturnForbidden() throws Exception {
         // Given
-        PilotCreationDto pilotData = PilotCreationDto.builder().name("TEST_PILOT").subGroups(List.of("ADMIN").toArray(new String[0])).build();
+        PilotCreationDto pilotData = new PilotCreationDto("TEST_PILOT", List.of("ADMIN"));
 
         // Mock JWT authentication
         JwtAuthenticationToken jwtAuthenticationToken = new JwtAuthenticationToken(adminJwt, List.of(new SimpleGrantedAuthority("ROLE_ADMIN")));
