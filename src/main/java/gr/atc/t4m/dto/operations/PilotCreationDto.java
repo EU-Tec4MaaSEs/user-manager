@@ -1,5 +1,7 @@
 package gr.atc.t4m.dto.operations;
 
+import java.util.List;
+
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotEmpty;
 import lombok.Builder;
@@ -18,6 +20,5 @@ public record PilotCreationDto(
                 name = "subGroups",
                 type = "array",
                 requiredMode = Schema.RequiredMode.NOT_REQUIRED)
-        String[] subGroups
-) {
-}
+       List<String> subGroups
+) {}

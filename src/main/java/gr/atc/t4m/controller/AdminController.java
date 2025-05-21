@@ -65,7 +65,7 @@ public class AdminController {
         String role = JwtUtils.extractPilotRole(jwt);
 
         // Set the flag to true or false according to the Role of User
-        boolean isSuperAdmin = role.equalsIgnoreCase("SUPER_ADMIN");
+        boolean isSuperAdmin = role.equalsIgnoreCase(SUPER_ADMIN_ROLE);
 
         return new ResponseEntity<>(BaseAppResponse.success(adminService.retrieveAllPilotRoles(isSuperAdmin), "Pilot/System roles retrieved successfully"), HttpStatus.OK);
     }
@@ -167,7 +167,7 @@ public class AdminController {
         String pilot = JwtUtils.extractPilotCode(jwt);
 
         // Validate that Admins can only create a role inside his/her organization
-        if (role.equalsIgnoreCase("ADMIN") && !pilot.equalsIgnoreCase(userRole.pilotCode()))
+        if (role.equalsIgnoreCase(ADMIN_ROLE) && !pilot.equalsIgnoreCase(userRole.pilotCode()))
             return new ResponseEntity<>(BaseAppResponse.error(UNAUTHORIZED_ACTION, "User of role 'ADMIN' can only create a new role only inside their organization"), HttpStatus.FORBIDDEN);
 
         // Create User Role in Keycloak
