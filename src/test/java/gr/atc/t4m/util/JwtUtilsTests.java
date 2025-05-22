@@ -180,4 +180,110 @@ class JwtUtilsTest {
         // Then
         assertTrue(roles.isEmpty());
     }
+
+    @DisplayName("Extract user role: Success")
+    @Test
+    void givenJwt_whenExtractUserRole_thenReturnUserRole() {
+        // When
+        String userRole = JwtUtils.extractUserRole(jwt);
+
+        // Then
+        assertNotNull(userRole);
+        assertEquals("TEST_USER_ROLE", userRole);
+    }
+
+    @DisplayName("Extract user role: Null when no user role field")
+    @Test
+    void givenJwtWithoutUserRole_whenExtractUserRole_thenReturnNull() {
+        // Given
+        Jwt jwtWithoutUserRole = Jwt.withTokenValue("token")
+                .headers(header -> header.put("alg", "HS256"))
+                .claims(claims -> claims.put("user_role", null))
+                .build();
+
+        // When
+        String userRole = JwtUtils.extractUserRole(jwtWithoutUserRole);
+
+        // Then
+        assertNull(userRole);
+    }
+
+    @DisplayName("Extract user first name: Success")
+    @Test
+    void givenJwt_whenExtractUserFirstName_thenReturnFirstName() {
+        // Given
+        Jwt jwtWithFirstName = Jwt.withTokenValue("token")
+                .headers(header -> header.put("alg", "HS256"))
+                .claims(claims -> claims.put("given_name", "John"))
+                .build();
+
+        // When
+        String firstName = JwtUtils.extractUserFirstName(jwtWithFirstName);
+
+        // Then
+        assertNotNull(firstName);
+        assertEquals("John", firstName);
+    }
+
+    @DisplayName("Extract user first name: Null when not present")
+    @Test
+    void givenJwtWithoutFirstName_whenExtractUserFirstName_thenReturnNull() {
+        Jwt jwtWithoutFirstName = Jwt.withTokenValue("token")
+                .headers(header -> header.put("alg", "HS256"))
+                .claims(claims -> claims.put("given_name", null))
+                .build();
+
+        String firstName = JwtUtils.extractUserFirstName(jwtWithoutFirstName);
+        assertNull(firstName);
+    }
+
+    @DisplayName("Extract user last name: Success")
+    @Test
+    void givenJwt_whenExtractUserLastName_thenReturnLastName() {
+        Jwt jwtWithLastName = Jwt.withTokenValue("token")
+                .headers(header -> header.put("alg", "HS256"))
+                .claims(claims -> claims.put("family_name", "Doe"))
+                .build();
+
+        String lastName = JwtUtils.extractUserLastName(jwtWithLastName);
+        assertNotNull(lastName);
+        assertEquals("Doe", lastName);
+    }
+
+    @DisplayName("Extract user last name: Null when not present")
+    @Test
+    void givenJwtWithoutLastName_whenExtractUserLastName_thenReturnNull() {
+        Jwt jwtWithoutLastName = Jwt.withTokenValue("token")
+                .headers(header -> header.put("alg", "HS256"))
+                .claims(claims -> claims.put("family_name", null))
+                .build();
+
+        String lastName = JwtUtils.extractUserLastName(jwtWithoutLastName);
+        assertNull(lastName);
+    }
+
+    @DisplayName("Extract user email: Success")
+    @Test
+    void givenJwt_whenExtractUserEmail_thenReturnEmail() {
+        Jwt jwtWithEmail = Jwt.withTokenValue("token")
+                .headers(header -> header.put("alg", "HS256"))
+                .claims(claims -> claims.put("email", "john.doe@example.com"))
+                .build();
+
+        String email = JwtUtils.extractUserEmail(jwtWithEmail);
+        assertNotNull(email);
+        assertEquals("john.doe@example.com", email);
+    }
+
+    @DisplayName("Extract user email: Null when not present")
+    @Test
+    void givenJwtWithoutEmail_whenExtractUserEmail_thenReturnNull() {
+        Jwt jwtWithoutEmail = Jwt.withTokenValue("token")
+                .headers(header -> header.put("alg", "HS256"))
+                .claims(claims -> claims.put("email", null))
+                .build();
+
+        String email = JwtUtils.extractUserEmail(jwtWithoutEmail);
+        assertNull(email);
+    }
 }

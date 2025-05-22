@@ -228,7 +228,7 @@ public class AdminControllerTests {
         // Then
         response.andExpect(status().isForbidden())
                 .andExpect(jsonPath("$.success", is(false)))
-                .andExpect(jsonPath("$.message", is("You are unauthorized to request this resource")));
+                .andExpect(jsonPath("$.message", is("You are unauthorized to request/modify this resource")));
     }
 
     @DisplayName("Create new Role: Missing fields in request body")
@@ -303,7 +303,7 @@ public class AdminControllerTests {
         // Then
         response.andExpect(status().isForbidden())
                 .andExpect(jsonPath("$.success", is(false)))
-                .andExpect(jsonPath("$.message", is("You are unauthorized to request this resource")));
+                .andExpect(jsonPath("$.message", is("You are unauthorized to request/modify this resource")));
     }
 
     @DisplayName("Retrieve User Role: Success")
@@ -393,7 +393,7 @@ public class AdminControllerTests {
         // Then
         response.andExpect(status().isForbidden())
                 .andExpect(jsonPath("$.success", is(false)))
-                .andExpect(jsonPath("$.message", is("You are unauthorized to request this resource")));
+                .andExpect(jsonPath("$.message", is("You are unauthorized to request/modify this resource")));
     }
 
     @DisplayName("Get All System Roles: Success")
@@ -593,7 +593,7 @@ public class AdminControllerTests {
         // Then
         response.andExpect(status().isForbidden())
                 .andExpect(jsonPath("$.success", is(false)))
-                .andExpect(jsonPath("$.message", is("You are unauthorized to request this resource")));
+                .andExpect(jsonPath("$.message", is("You are unauthorized to request/modify this resource")));
     }
 
     private static Jwt createMockJwtToken(String userRole, String pilotRole, String pilotCode){
@@ -604,7 +604,7 @@ public class AdminControllerTests {
         String tokenValue = "mock.jwt.token";
         Map<String, Object> claims = new HashMap<>();
         claims.put("realm_access", Map.of("roles", List.of(pilotRole)));
-        claims.put("resource_access", Map.of("tec4maases", Map.of("roles", List.of(pilotRole))));
+        claims.put("resource_access", Map.of("test-client", Map.of("roles", List.of(pilotRole))));
         claims.put("sub", UUID.randomUUID().toString());
         claims.put("pilot_code", pilotCode);
         claims.put("pilot_role", pilotRole);

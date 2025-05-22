@@ -164,10 +164,10 @@ public class GlobalExceptionHandler {
     }
 
     @ExceptionHandler(ResourceNotPresentException.class)
-    @ResponseStatus(HttpStatus.CONFLICT)
+    @ResponseStatus(HttpStatus.NOT_FOUND)
     public ResponseEntity<BaseAppResponse<String>> handleResourceNotPresentException(@NotNull ResourceNotPresentException ex) {
         return new ResponseEntity<>(BaseAppResponse.error("Resource not found", ex.getMessage()),
-                HttpStatus.CONFLICT);
+                HttpStatus.NOT_FOUND);
     }
 
     @ExceptionHandler(UserActivateStatusException.class)

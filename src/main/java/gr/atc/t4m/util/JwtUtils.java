@@ -16,6 +16,9 @@ public class JwtUtils {
     private static final String CLAIM_ROLES = "roles";
     private static final String CLAIM_RESOURCE_ACCESS = "resource_access";
     private static final String ID_FIELD = "sub";
+    private static final String FIRST_NAME_FIELD = "given_name";
+    private static final String LAST_NAME_FIELD = "family_name";
+    private static final String EMAIL_FIELD = "email";
     private static final String USER_ROLE = "user_role";
     private static final String PILOT_CODE = "pilot_code";
     private static final String PILOT_ROLE = "pilot_role";
@@ -83,11 +86,10 @@ public class JwtUtils {
         return jwt.getClaimAsStringList(USER_ROLE).getFirst();
     }
 
-
     /**
      * Util to extract the userId from Token
      *
-     * @param jwt  Token to extract userId
+     * @param jwt : Token to extract userId
      * @return userId
      */
     public static String extractUserId(Jwt jwt){
@@ -96,6 +98,46 @@ public class JwtUtils {
         }
         return jwt.getClaimAsString(ID_FIELD);
     }
+
+    /**
+     * Util to extract the extractUserFirstName from Token
+     *
+     * @param jwt : Token to extract First name
+     * @return First Name
+     */
+    public static String extractUserFirstName(Jwt jwt){
+        if (jwt == null || jwt.getClaimAsString(FIRST_NAME_FIELD) == null) {
+            return null;
+        }
+        return jwt.getClaimAsString(FIRST_NAME_FIELD);
+    }
+
+    /**
+     * Util to extract the Last Name from Token
+     *
+     * @param jwt : Token to extract Last name
+     * @return Last Name
+     */
+    public static String extractUserLastName(Jwt jwt){
+        if (jwt == null || jwt.getClaimAsString(LAST_NAME_FIELD) == null) {
+            return null;
+        }
+        return jwt.getClaimAsString(LAST_NAME_FIELD);
+    }
+
+    /**
+     * Util to extract the Email from Token
+     *
+     * @param jwt : Token to extract email
+     * @return Email
+     */
+    public static String extractUserEmail(Jwt jwt){
+        if (jwt == null || jwt.getClaimAsString(EMAIL_FIELD) == null) {
+            return null;
+        }
+        return jwt.getClaimAsString(EMAIL_FIELD);
+    }
+
 
     /**
      * Util to extract User Type from JWT Token

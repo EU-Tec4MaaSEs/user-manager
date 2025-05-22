@@ -78,7 +78,6 @@ public class UserDto {
     @JsonIgnore
     private String resetToken;
 
-    @Null
     @JsonProperty("tokenFlag")
     @JsonIgnore
     private boolean tokenFlagRaised;

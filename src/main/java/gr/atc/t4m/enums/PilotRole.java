@@ -4,6 +4,7 @@ package gr.atc.t4m.enums;
  * Enum for Pilot Roles
  */
 public enum PilotRole {
+    USER("USER"),
     ADMIN("ADMIN"),
     SUPER_ADMIN("SUPER_ADMIN");
 
