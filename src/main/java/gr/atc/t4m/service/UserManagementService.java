@@ -1,6 +1,7 @@
 package gr.atc.t4m.service;
 
 import gr.atc.t4m.dto.UserDto;
+import gr.atc.t4m.dto.operations.PasswordsDto;
 import gr.atc.t4m.dto.operations.UserCreationDto;
 import gr.atc.t4m.config.properties.KeycloakProperties;
 import gr.atc.t4m.service.interfaces.IKeycloakAdminService;
@@ -67,11 +68,6 @@ public class UserManagementService implements IUserManagementService {
 
     }
 
-    @Override
-    public void updateUser(UserDto user) {
-
-    }
-
     /**
      * Create a new User in Keycloak
      *
@@ -116,6 +112,11 @@ public class UserManagementService implements IUserManagementService {
         }
     }
 
+    @Override
+    public void assignRolesToUser(UserDto userData) {
+
+    }
+
     /**
      * Extract UserId from Keycloak Response if successful
      *
@@ -151,20 +152,20 @@ public class UserManagementService implements IUserManagementService {
     }
 
     @Override
-    public void updateUser(UserDto user, String userId) {
+    public void updateUser(UserDto user) {
         try {
             UserResource userResource = keycloak.realm(realm)
                     .users()
-                    .get(userId);
+                    .get(user.getUserId());
 
             UserRepresentation existing = userResource.toRepresentation();
             if (existing == null)
-                throw new ResourceNotPresentException("User with ID: " + userId + " not found");
+                throw new ResourceNotPresentException("User with ID: " + user.getUserId() + " not found");
 
             userResource.update(UserDto.toUserRepresentation(user, existing));
         } catch (Exception e) {
-            log.error("Error updating user {}: {}", userId, e.getMessage(), e);
-            throw new KeycloakException("Error updating user with id = " + userId, e);
+            log.error("Error updating user {}: {}", user.getUserId(), e.getMessage(), e);
+            throw new KeycloakException("Error updating user with id = " + user.getUserId(), e);
         }
     }
 
@@ -211,14 +212,29 @@ public class UserManagementService implements IUserManagementService {
         return UserDto.fromUserRepresentation(user);
     }
 
+    @Override
+    public void changePassword(PasswordsDto passwords, String userId) {
+
+    }
+
+    @Override
+    public void forgotPassword(String email) {
+
+    }
+
+    @Override
+    public void resetPassword(String userId, String resetToken, String password) {
+
+    }
+
     /**
      * Call functions to assign roles to user
      *
      * @param newUserDetails      : User details
      * @param userId              : User ID
      */
-    @Override
     @Async("asyncPoolTaskExecutor")
+    @Override
     public void assignRolesToUser(UserCreationDto newUserDetails, String userId) {
 //            // Trigger role assignments depending on use cases (Creation or Update)
 //            if (existingUserDetails == null) {

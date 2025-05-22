@@ -34,7 +34,7 @@ public class AdminController {
     private static final String ADMIN_ROLE = "ADMIN";
     private static final String SUPER_ADMIN_ROLE = "SUPER_ADMIN";
     private static final String GLOBAL_PILOT_CODE = "ALL";
-    private static final String UNAUTHORIZED_ACTION = "You are unauthorized to request this resource";
+    private static final String UNAUTHORIZED_ACTION = "You are unauthorized to request/modify this resource";
 
     public AdminController(IKeycloakAdminService adminService) {
         this.adminService = adminService;
@@ -54,9 +54,9 @@ public class AdminController {
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "Pilot/System roles retrieved successfully"),
             @ApiResponse(responseCode = "401", description = "Unauthorized request. Check token and try again. | Thrown when no JWT Token is provided as Bearer Token"),
-            @ApiResponse(responseCode = "403", description = "Invalid authorization parameters | Thrown when no token is provided"),
+            @ApiResponse(responseCode = "403", description = "Invalid authorization parameters | Thrown when user can not access the specific resource"),
             @ApiResponse(responseCode = "403", description = "Invalid JWT token attributes | Thrown when some attributes are missing from the JWT Token"),
-            @ApiResponse(responseCode = "403", description = "You are unauthorized to request this resource | Thrown when a user attempts to request a resource that he/she is not authorized to access")
+            @ApiResponse(responseCode = "403", description = "You are unauthorized to request/modify this resource | Thrown when a user attempts to alter a resource that he/she is not authorized to access")
     })
     @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'ADMIN')")
     @GetMapping("/system/roles")
@@ -82,7 +82,7 @@ public class AdminController {
     @Operation(summary = "[SUPER_ADMIN] Retrieve all pilots from Keycloak", security = @SecurityRequirement(name = "bearerToken"))
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "Pilot codes retrieved successfully"),
-            @ApiResponse(responseCode = "401", description = "Invalid authorization parameters | Thrown when no token is provided"),
+            @ApiResponse(responseCode = "401", description = "Invalid authorization parameters | Thrown when user can not access the specific resource"),
     })
     @PreAuthorize("hasRole('SUPER_ADMIN')")
     @GetMapping("/pilots")
@@ -99,9 +99,9 @@ public class AdminController {
     @ApiResponses(value = {
             @ApiResponse(responseCode = "201", description = "Pilot created successfully"),
             @ApiResponse(responseCode = "401", description = "Unauthorized request. Check token and try again. | Thrown when no JWT Token is provided as Bearer Token"),
-            @ApiResponse(responseCode = "403", description = "Invalid authorization parameters | Thrown when no token is provided"),
+            @ApiResponse(responseCode = "403", description = "Invalid authorization parameters | Thrown when user can not access the specific resource"),
             @ApiResponse(responseCode = "403", description = "Invalid JWT token attributes | Thrown when some attributes are missing from the JWT Token"),
-            @ApiResponse(responseCode = "403", description = "You are unauthorized to request this resource | Thrown when a user attempts to request a resource that he/she is not authorized to access"),
+            @ApiResponse(responseCode = "403", description = "You are unauthorized to request/modify this resource | Thrown when a user attempts to alter a resource that he/she is not authorized to access"),
             @ApiResponse(responseCode = "409", description = "Resource already exists")
     })
     @PreAuthorize("hasRole('SUPER_ADMIN')")
@@ -123,9 +123,9 @@ public class AdminController {
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "Pilot deleted successfully"),
             @ApiResponse(responseCode = "401", description = "Unauthorized request. Check token and try again. | Thrown when no JWT Token is provided as Bearer Token"),
-            @ApiResponse(responseCode = "403", description = "Invalid authorization parameters | Thrown when no token is provided"),
+            @ApiResponse(responseCode = "403", description = "Invalid authorization parameters | Thrown when user can not access the specific resource"),
             @ApiResponse(responseCode = "403", description = "Invalid JWT token attributes | Thrown when some attributes are missing from the JWT Token"),
-            @ApiResponse(responseCode = "403", description = "You are unauthorized to request this resource | Thrown when a user attempts to request a resource that he/she is not authorized to access"),
+            @ApiResponse(responseCode = "403", description = "You are unauthorized to request/modify this resource | Thrown when a user attempts to alter a resource that he/she is not authorized to access"),
     })
     @PreAuthorize("hasRole('SUPER_ADMIN')")
     @DeleteMapping("/pilots/{pilotName}")
@@ -154,9 +154,9 @@ public class AdminController {
             @ApiResponse(responseCode = "201", description = "User role created successfully"),
             @ApiResponse(responseCode = "400", description = "Validation failed | Thrown when input data are invalid or required data are missing"),
             @ApiResponse(responseCode = "401", description = "Unauthorized request. Check token and try again. | Thrown when no JWT Token is provided as Bearer Token"),
-            @ApiResponse(responseCode = "403", description = "Invalid authorization parameters | Thrown when no token is provided"),
+            @ApiResponse(responseCode = "403", description = "Invalid authorization parameters | Thrown when user can not access the specific resource"),
             @ApiResponse(responseCode = "403", description = "Invalid JWT token attributes | Thrown when some attributes are missing from the JWT Token"),
-            @ApiResponse(responseCode = "403", description = "You are unauthorized to request this resource | Thrown when a user attempts to request a resource that he/she is not authorized to access"),
+            @ApiResponse(responseCode = "403", description = "You are unauthorized to request/modify this resource | Thrown when a user attempts to alter a resource that he/she is not authorized to access"),
             @ApiResponse(responseCode = "409", description = "Resource already exists")
     })
     @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'ADMIN')")
@@ -186,9 +186,9 @@ public class AdminController {
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "User role deleted successfully"),
             @ApiResponse(responseCode = "401", description = "Unauthorized request. Check token and try again. | Thrown when no JWT Token is provided as Bearer Token"),
-            @ApiResponse(responseCode = "403", description = "Invalid authorization parameters | Thrown when no token is provided"),
+            @ApiResponse(responseCode = "403", description = "Invalid authorization parameters | Thrown when user can not access the specific resource"),
             @ApiResponse(responseCode = "403", description = "Invalid JWT token attributes | Thrown when some attributes are missing from the JWT Token"),
-            @ApiResponse(responseCode = "403", description = "You are unauthorized to request this resource | Thrown when a user attempts to request a resource that he/she is not authorized to access"),
+            @ApiResponse(responseCode = "403", description = "You are unauthorized to request/modify this resource | Thrown when a user attempts to alter a resource that he/she is not authorized to access"),
             @ApiResponse(responseCode = "404", description = "Resource not found")
     })
     @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'ADMIN')")
@@ -226,8 +226,8 @@ public class AdminController {
             @ApiResponse(responseCode = "200", description = "User role retrieved successfully"),
             @ApiResponse(responseCode = "401", description = "Unauthorized request. Check token and try again. | Thrown when no JWT Token is provided as Bearer Token"),
             @ApiResponse(responseCode = "403", description = "Invalid JWT token attributes | Thrown when some attributes are missing from the JWT Token"),
-            @ApiResponse(responseCode = "403", description = "Invalid authorization parameters | Thrown when no token is provided"),
-            @ApiResponse(responseCode = "403", description = "You are unauthorized to request this resource | Thrown when a user attempts to request a resource that he/she is not authorized to access"),
+            @ApiResponse(responseCode = "403", description = "Invalid authorization parameters | Thrown when user can not access the specific resource"),
+            @ApiResponse(responseCode = "403", description = "You are unauthorized to request/modify this resource | Thrown when a user attempts to alter a resource that he/she is not authorized to access"),
             @ApiResponse(responseCode = "404", description = "Resource not found")
     })
     @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'ADMIN')")
@@ -258,9 +258,9 @@ public class AdminController {
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "User role updated successfully"),
             @ApiResponse(responseCode = "401", description = "Unauthorized request. Check token and try again. | Thrown when no JWT Token is provided as Bearer Token"),
-            @ApiResponse(responseCode = "403", description = "Invalid authorization parameters | Thrown when no token is provided"),
+            @ApiResponse(responseCode = "403", description = "Invalid authorization parameters | Thrown when user can not access the specific resource"),
             @ApiResponse(responseCode = "403", description = "Invalid JWT token attributes | Thrown when some attributes are missing from the JWT Token"),
-            @ApiResponse(responseCode = "403", description = "You are unauthorized to request this resource | Thrown when a user attempts to request a resource that he/she is not authorized to access"),
+            @ApiResponse(responseCode = "403", description = "You are unauthorized to request/modify this resource | Thrown when a user attempts to alter a resource that he/she is not authorized to access"),
             @ApiResponse(responseCode = "404", description = "Resource not found")
     })
     @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'ADMIN')")
@@ -302,9 +302,9 @@ public class AdminController {
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "User roles retrieved successfully"),
             @ApiResponse(responseCode = "401", description = "Unauthorized request. Check token and try again. | Thrown when no JWT Token is provided as Bearer Token"),
-            @ApiResponse(responseCode = "403", description = "Invalid authorization parameters | Thrown when no token is provided"),
+            @ApiResponse(responseCode = "403", description = "Invalid authorization parameters | Thrown when user can not access the specific resource"),
             @ApiResponse(responseCode = "403", description = "Invalid JWT token attributes | Thrown when some attributes are missing from the JWT Token"),
-            @ApiResponse(responseCode = "403", description = "You are unauthorized to request this resource | Thrown when a user attempts to request a resource that he/she is not authorized to access")
+            @ApiResponse(responseCode = "403", description = "You are unauthorized to request/modify this resource | Thrown when a user attempts to alter a resource that he/she is not authorized to access")
     })
     @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'ADMIN')")
     @GetMapping("/roles")
@@ -332,9 +332,9 @@ public class AdminController {
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "User roles retrieved successfully"),
             @ApiResponse(responseCode = "401", description = "Unauthorized request. Check token and try again. | Thrown when no JWT Token is provided as Bearer Token"),
-            @ApiResponse(responseCode = "403", description = "Invalid authorization parameters | Thrown when no token is provided"),
+            @ApiResponse(responseCode = "403", description = "Invalid authorization parameters | Thrown when user can not access the specific resource"),
             @ApiResponse(responseCode = "403", description = "Invalid JWT token attributes | Thrown when some attributes are missing from the JWT Token"),
-            @ApiResponse(responseCode = "403", description = "You are unauthorized to request this resource | Thrown when a user attempts to request a resource that he/she is not authorized to access")
+            @ApiResponse(responseCode = "403", description = "You are unauthorized to request/modify this resource | Thrown when a user attempts to alter a resource that he/she is not authorized to access")
     })
     @GetMapping("/roles/type/{pilotRole}")
     public ResponseEntity<BaseAppResponse<List<String>>> retrieveAllUserRolesPerPilotRole(@AuthenticationPrincipal Jwt jwt,
@@ -407,10 +407,10 @@ public class AdminController {
     @ApiResponses(value = {
             @ApiResponse(responseCode = "201", description = "User role assigned successfully to pilot"),
             @ApiResponse(responseCode = "401", description = "Unauthorized request. Check token and try again. | Thrown when no JWT Token is provided as Bearer Token"),
-            @ApiResponse(responseCode = "403", description = "Invalid authorization parameters | Thrown when no token is provided"),
+            @ApiResponse(responseCode = "403", description = "Invalid authorization parameters | Thrown when user can not access the specific resource"),
             @ApiResponse(responseCode = "403", description = "Invalid JWT token attributes | Thrown when some attributes are missing from the JWT Token"),
-            @ApiResponse(responseCode = "403", description = "You are unauthorized to request this resource | Thrown when a user attempts to request a resource that he/she is not authorized to access"),
-            @ApiResponse(responseCode = "409", description = "Resource not found")
+            @ApiResponse(responseCode = "403", description = "You are unauthorized to request/modify this resource | Thrown when a user attempts to alter a resource that he/she is not authorized to access"),
+            @ApiResponse(responseCode = "404", description = "Resource not found")
     })
     @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'ADMIN')")
     @PutMapping("/pilots/{pilotCode}/assign/roles/{userRole}")
