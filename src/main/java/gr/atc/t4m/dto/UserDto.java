@@ -89,8 +89,7 @@ public class UserDto {
      * @param existingUser : Existing User Representation if provided
      * @return UserRepresentationDTO
      */
-    public static UserRepresentation toUserRepresentation(UserDto user,
-                                                                UserRepresentation existingUser) {
+    public static UserRepresentation toUserRepresentation(UserDto user, UserRepresentation existingUser) {
         if (user == null)
             return existingUser;
 
@@ -104,8 +103,8 @@ public class UserDto {
         }
 
         updateUserDetails(user, keycloakUser, existingUser);
-        updateUserAttributes(user, keycloakUser);
         updateUserTokenAttributes(user, keycloakUser, existingUser);
+        updateUserAttributes(user, keycloakUser);
 
         return keycloakUser;
     }
@@ -127,6 +126,7 @@ public class UserDto {
                 .username(keycloakUser.getUsername())
                 .pilotCode(getPilotCodeAttribute(keycloakUser))
                 .pilotRole(getPilotRoleAttribute(keycloakUser))
+                .userRole(getUserRoleAttribute(keycloakUser))
                 .activationToken(getAttributeValue(keycloakUser, ACTIVATION_TOKEN))
                 .activationExpiry(getAttributeValue(keycloakUser, ACTIVATION_EXPIRY))
                 .resetToken(getAttributeValue(keycloakUser, RESET_TOKEN))
@@ -148,6 +148,10 @@ public class UserDto {
 
     private static String getPilotRoleAttribute(UserRepresentation user) {
         return getAttributeValue(user, PILOT_ROLE);
+    }
+
+    private static String getUserRoleAttribute(UserRepresentation user) {
+        return getAttributeValue(user, USER_ROLE);
     }
 
     /**
@@ -201,9 +205,10 @@ public class UserDto {
             keycloakUser.getAttributes().put(PILOT_ROLE, List.of(user.getPilotRole()));
         }
 
+        String finalPilotRole = user.getPilotRole() != null ? user.getPilotRole() : keycloakUser.getAttributes().get(PILOT_ROLE).getFirst();
         if (user.getPilotCode() != null) {
             if (!user.getPilotCode().equalsIgnoreCase(SUPER_ADMIN_PILOT)) {
-                String pilotType = "/" + user.getPilotCode() + "/" + user.getPilotRole();
+                String pilotType = "/" + user.getPilotCode() + "/" + finalPilotRole;
                 keycloakUser.setGroups(List.of("/" + user.getPilotCode(), pilotType));
             }
             keycloakUser.getAttributes().put(PILOT_CODE, List.of(user.getPilotCode()));
@@ -223,16 +228,19 @@ public class UserDto {
      */
     private static void updateUserTokenAttributes(UserDto user, UserRepresentation keycloakUser,
                                                   UserRepresentation existingUser) {
-        // Set activation token and expiration time as attributes - Two cases can be observed: 1) Create
-        // a new user 2) Activate user
+        // Attributes Field
+        if (keycloakUser.getAttributes() == null) {
+            keycloakUser.setAttributes(new HashMap<>());
+        }
+        // Set activation token and expiration time as attributes - Two cases can be observed:
+        // 1) Create a new user
+        // 2) Activate user
         if (existingUser == null && user.getActivationExpiry() != null
-                && user.getActivationToken() != null && !user.isTokenFlagRaised()) { // Creation of a new
-            // user
+                && user.getActivationToken() != null && !user.isTokenFlagRaised()) { // Creation of a new user
             keycloakUser.getAttributes().put(ACTIVATION_TOKEN, List.of(user.getActivationToken()));
             keycloakUser.getAttributes().put(ACTIVATION_EXPIRY, List.of(user.getActivationExpiry()));
         } else if (user.isTokenFlagRaised() && user.getActivationToken() != null
-                && keycloakUser.getAttributes() != null) { // This will apply only after the user has been
-            // activated
+                && keycloakUser.getAttributes() != null) { // This will apply only after the user has been activated
             keycloakUser.getAttributes().remove(ACTIVATION_TOKEN);
             keycloakUser.getAttributes().remove(ACTIVATION_EXPIRY);
             keycloakUser.setEnabled(true); // Enable user

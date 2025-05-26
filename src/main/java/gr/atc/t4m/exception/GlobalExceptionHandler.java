@@ -157,23 +157,26 @@ public class GlobalExceptionHandler {
     }
 
     @ExceptionHandler(ResourceAlreadyExistsException.class)
-    @ResponseStatus(HttpStatus.CONFLICT)
     public ResponseEntity<BaseAppResponse<String>> handleResourceAlreadyExistsException(@NotNull ResourceAlreadyExistsException ex) {
         return new ResponseEntity<>(BaseAppResponse.error("Resource already exists", ex.getMessage()),
                 HttpStatus.CONFLICT);
     }
 
     @ExceptionHandler(ResourceNotPresentException.class)
-    @ResponseStatus(HttpStatus.NOT_FOUND)
     public ResponseEntity<BaseAppResponse<String>> handleResourceNotPresentException(@NotNull ResourceNotPresentException ex) {
         return new ResponseEntity<>(BaseAppResponse.error("Resource not found", ex.getMessage()),
                 HttpStatus.NOT_FOUND);
     }
 
     @ExceptionHandler(UserActivateStatusException.class)
-    @ResponseStatus(HttpStatus.CONFLICT)
     public ResponseEntity<BaseAppResponse<String>> handleUserAlreadyActivatedException(@NotNull UserActivateStatusException ex) {
         return new ResponseEntity<>(BaseAppResponse.error("Activation failed", ex.getMessage()),
+                HttpStatus.CONFLICT);
+    }
+
+    @ExceptionHandler(InvalidPasswordException.class)
+    public ResponseEntity<BaseAppResponse<String>> handleInvalidPasswordException(@NotNull InvalidPasswordException ex) {
+        return new ResponseEntity<>(BaseAppResponse.error("Password validation failed", ex.getMessage()),
                 HttpStatus.CONFLICT);
     }
 }

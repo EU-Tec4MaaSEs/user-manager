@@ -5,7 +5,7 @@
 	<parent>
 		<groupId>org.springframework.boot</groupId>
 		<artifactId>spring-boot-starter-parent</artifactId>
-		<version>3.4.5</version>
+		<version>3.5.0</version>
 		<relativePath/> <!-- lookup parent from repository -->
 	</parent>
 	<groupId>gr.atc</groupId>
@@ -115,7 +115,7 @@
 			<groupId>io.micrometer</groupId>
 			<artifactId>micrometer-registry-otlp</artifactId>
 			<scope>runtime</scope>
-		</dependency> -->
+		</dependency>-->
 		<!-- Open API -->
 		<dependency>
 			<groupId>org.springdoc</groupId>

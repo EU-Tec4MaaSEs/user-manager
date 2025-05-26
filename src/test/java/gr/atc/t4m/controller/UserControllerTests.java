@@ -131,6 +131,80 @@ class UserControllerTests {
                 .andExpect(jsonPath("$.data.accessToken", is(authenticationResponse.accessToken())));
     }
 
+    @DisplayName("Refresh Token: No token provided / Failure")
+    @Test
+    void givenNoInput_whenRefreshToken_thenReturnBadRequest() throws Exception {
+
+        // When
+        ResultActions response = mockMvc.perform(post("/api/users/refresh-token")
+                .contentType(MediaType.APPLICATION_JSON));
+
+        // Then
+        response.andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.success", is(false)))
+                .andExpect(jsonPath("$.message", is("Invalid / No input was given for requested resource")));
+    }
+
+    @DisplayName("Activate User: Success")
+    @Test
+    void givenInputToken_whenActivateUser_thenSuccess() throws Exception {
+        // When
+        ResultActions response = mockMvc.perform(post("/api/users/activate")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString("Test123@"))
+                .param("token", "userId@token"));
+
+        // Then
+        response.andExpect(status().isOk())
+                .andExpect(jsonPath("$.success", is(true)))
+                .andExpect(jsonPath("$.message", is("User activated and password updated successfully.")));
+    }
+
+    @DisplayName("Activate User: No token provided / Failure")
+    @Test
+    void givenNoInputToken_whenActivateUser_thenReturnBadRequest() throws Exception {
+
+        // When
+        ResultActions response = mockMvc.perform(post("/api/users/activate")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString("Test123@"))
+                .param("token", "wrong-token"));
+
+        // Then
+        response.andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.success", is(false)))
+                .andExpect(jsonPath("$.message", is("Invalid token was given as parameter")));
+    }
+
+    @DisplayName("Activate User: No Password Provided / Failure")
+    @Test
+    void givenNoPassword_whenActivateUser_thenReturnBadRequest() throws Exception {
+
+        // When
+        ResultActions response = mockMvc.perform(post("/api/users/activate")
+                .contentType(MediaType.APPLICATION_JSON)
+                .param("token", "wrong-token"));
+
+        // Then
+        response.andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.success", is(false)))
+                .andExpect(jsonPath("$.message", is("Validation failed")));
+    }
+
+    @DisplayName("Activate User: Invalid Token")
+    @Test
+    void givenInvalidToken_whenActivateUser_thenReturnBadRequest() throws Exception {
+
+        // When
+        ResultActions response = mockMvc.perform(post("/api/users/activate")
+                .contentType(MediaType.APPLICATION_JSON));
+
+        // Then
+        response.andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.success", is(false)))
+                .andExpect(jsonPath("$.message", is("Invalid / No input was given for requested resource")));
+    }
+
     @DisplayName("Authenticate User: Invalid Format of Credentials")
     @Test
     void givenInvalidUserCredentials_whenAuthenticate_thenReturnBadRequest() throws Exception {
@@ -170,20 +244,6 @@ class UserControllerTests {
 
         // Then
         response.andExpect(status().isBadRequest()).andExpect(jsonPath("$.success", is(false)));
-    }
-
-    @DisplayName("Refresh Token: No token provided / Failure")
-    @Test
-    void givenNoInput_whenRefreshToken_thenReturnBadRequest() throws Exception {
-
-        // When
-        ResultActions response = mockMvc.perform(post("/api/users/refresh-token")
-                        .contentType(MediaType.APPLICATION_JSON));
-
-        // Then
-        response.andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.success", is(false)))
-                .andExpect(jsonPath("$.message", is("Invalid / No input was given for requested resource")));
     }
 
     @DisplayName("Create User: Success")
