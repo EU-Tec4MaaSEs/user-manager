@@ -158,6 +158,39 @@ public class UserController {
     }
 
     /**
+     * Activate User and update his/her password
+     *
+     * @param token : Activation token with userId information and activation token stored in Keycloak
+     * @param password : User's new password
+     * @return message of success or failure
+     */
+    @Operation(summary = "Activate user", security = @SecurityRequirement(name = ""))
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "User activated and password updated successfully."),
+            @ApiResponse(responseCode = "400", description = "Invalid token was given as parameter"),
+            @ApiResponse(responseCode = "400", description = "Validation failed"),
+            @ApiResponse(responseCode = "404", description = "Resource not found"),
+            @ApiResponse(responseCode = "409", description = "User is already activated"),
+    })
+    @PostMapping(value = "/activate")
+    public ResponseEntity<BaseAppResponse<String>> activateUser(@RequestParam String token,
+                                                             @ValidPassword @RequestBody String password) {
+
+        // Split the User ID and the Keycloak Activation Token
+        List<String> tokenData = List.of(token.split("@"));
+
+        // Ensure token inserted is valid - UserID # Activation Token
+        if (tokenData.size() != 2)
+            return new ResponseEntity<>(BaseAppResponse.error("Invalid token was given as parameter"), HttpStatus.BAD_REQUEST);
+
+        String userId = tokenData.getFirst();
+        String activationToken = tokenData.getLast();
+
+        userManagerService.activateUser(userId, activationToken, password);
+        return new ResponseEntity<>(BaseAppResponse.success(null, "User activated and password updated successfully."), HttpStatus.OK);
+    }
+
+    /**
      * Update user's information in Keycloak
      *
      * @param updatedUserData: UserDTO Updated information

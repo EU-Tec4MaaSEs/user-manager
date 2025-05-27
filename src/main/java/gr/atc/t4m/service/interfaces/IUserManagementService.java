@@ -3,6 +3,7 @@ package gr.atc.t4m.service.interfaces;
 import gr.atc.t4m.dto.UserDto;
 import gr.atc.t4m.dto.operations.PasswordsDto;
 import gr.atc.t4m.dto.operations.UserCreationDto;
+import org.keycloak.admin.client.resource.UserResource;
 import org.springframework.scheduling.annotation.Async;
 
 import java.util.List;
@@ -19,11 +20,9 @@ public interface IUserManagementService {
 
     void assignRolesToUser(UserDto userData);
 
-    void assignRolesToUser(UserCreationDto newUserDetails, String userId);
+    boolean assignRealmRole(String userRole, String userId, UserResource userResource);
 
-    void assignRealmRole(String userRole, String userId);
-
-    void assignClientRole(String userRole, String userId);
+    boolean assignClientRole(String userRole, String userId, UserResource userResource);
 
     List<UserDto> retrieveAllUsers();
 
@@ -36,4 +35,6 @@ public interface IUserManagementService {
     void forgotPassword(String email);
 
     void resetPassword(String userId, String resetToken, String password);
+
+    void activateUser(String userId, String activationToken, String password);
 }

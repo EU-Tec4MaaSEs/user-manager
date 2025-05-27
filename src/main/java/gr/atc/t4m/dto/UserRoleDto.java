@@ -46,9 +46,7 @@ public class UserRoleDto {
         userRoleDto.setName(newUserRole.name());
         userRoleDto.setPilotCode(newUserRole.pilotCode());
         userRoleDto.setPilotRole(newUserRole.pilotRole());
-        if (newUserRole.description() == null)
-            userRoleDto.setDescription("Role for pilot '" + userRoleDto.getPilotCode() + "' and pilot role of '" + userRoleDto.getPilotRole());
-        else
+        if (newUserRole.description() != null)
             userRoleDto.setDescription(newUserRole.description());
         return userRoleDto;
     }
@@ -59,8 +57,10 @@ public class UserRoleDto {
     public static RoleRepresentation toRoleRepresentation(UserRoleDto userRole, RoleRepresentation existingRoleRepresentation){
         RoleRepresentation roleRepresentation = existingRoleRepresentation == null ? new RoleRepresentation() : existingRoleRepresentation;
 
-        if (userRole.getName() != null)
-            roleRepresentation.setName(userRole.getName().isEmpty() ? roleRepresentation.getName() : userRole.getName().toUpperCase());
+        Optional.ofNullable(userRole.getName())
+                .map(String::trim)
+                .map(String::toUpperCase)
+                .ifPresent(roleRepresentation::setName);
 
         Map<String, List<String>> attributes;
         // Used when role is initialized
@@ -75,12 +75,14 @@ public class UserRoleDto {
         // Add pilot role attribute if included in UserRoleDTO
         Optional.ofNullable(userRole.getPilotRole())
                 .map(Object::toString)
+                .map(String::trim)
                 .map(String::toUpperCase)
                 .ifPresent(pilotRole -> attributes.put(PILOT_ROLE, List.of(pilotRole)));
 
         // Add pilot code attribute if included in UserRoleDTO
         Optional.ofNullable(userRole.getPilotCode())
                 .map(Object::toString)
+                .map(String::trim)
                 .map(String::toUpperCase)
                 .ifPresent(pilotCode -> attributes.put(PILOT_CODE, List.of(pilotCode)));
 
@@ -88,7 +90,10 @@ public class UserRoleDto {
         roleRepresentation.setAttributes(attributes);
 
         // Update the description
-        roleRepresentation.setDescription(userRole.getDescription() != null ? userRole.getDescription() : "Role for pilot '" + userRole.getPilotCode() + "' and pilot role of '" + userRole.getPilotRole() + "'");
+        Optional.ofNullable(userRole.getDescription())
+                .map(Object::toString)
+                .map(String::trim)
+                .ifPresent(roleRepresentation::setDescription);
 
         return roleRepresentation;
     }
