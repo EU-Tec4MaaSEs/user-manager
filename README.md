@@ -3,7 +3,7 @@
 ## Overview
 
 User manager is responsible to handle authentication process inside Tec4MaaSEs. It connects with Keycloak and routes all requests to authenticate
-users, refresh tokens, manage users and thei roles and request information regarding their authorization in the system.
+users, refresh tokens, manage users and their roles and request information regarding their authorization in the system.
 
 It exploits OAuth2.0 and OpenID protocols integrated with Spring Security with configured Request Filters to increase the security of the application and generate JWT Tokens for users. It utilizes Keycloak libraries to connect directly with Keycloak resource server.
 
@@ -35,15 +35,17 @@ Utilizes and implements the following concepts:
     mvn install
     ```
 
-3. Instantiate an instance of Keycloak with PostgreSQL and configure the following variables:
+3. Instantiate an instance of Keycloak with PostgresSQL and configure the following variables:
 
    ```sh
    server.port=${APP_PORT:8094}
    application.url=${APP_URL:http://localhost:8094}
-   spring.keycloak.url=${KEYCLOAK_URL:###}
+   keycloak.url=${KEYCLOAK_URL:###}
    keycloak.realm=${KEYCLOAK_REALM:###}
    keycloak.client-id=${KEYCLOAK_CLIENT_ID:###}
    keycloak.client-secret=${KEYCLOAK_CLIENT_SECRET:###}
+   keycloak.admin-username=${KEYCLOAK_ADMIN_USERNAME:###}
+   keycloak.admin-password=${KEYCLOAK_ADMIN_PASSWORD:###}
    spring.security.cors.domains=${CORS_DOMAINS:http://localhost:3000}
    spring.mail.host = ${MAIL_HOST:smtp.gmail.com}
    spring.mail.port = ${MAIL_PORT:587}
