@@ -1,6 +1,7 @@
 package gr.atc.t4m.security.filters;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import gr.atc.t4m.config.properties.KeycloakProperties;
 import gr.atc.t4m.controller.BaseAppResponse;
 import gr.atc.t4m.util.JwtUtils;
 import jakarta.servlet.FilterChain;
@@ -24,8 +25,12 @@ public class JwtAttributesValidatorFilter extends OncePerRequestFilter {
 
     private final ObjectMapper objectMapper;
 
-    public JwtAttributesValidatorFilter(ObjectMapper objectMapper) {
+    private final String clientName;
+
+
+    public JwtAttributesValidatorFilter(ObjectMapper objectMapper, KeycloakProperties keycloakProperties) {
         this.objectMapper = objectMapper;
+        this.clientName = keycloakProperties.clientId();
     }
 
     @Override
@@ -41,7 +46,7 @@ public class JwtAttributesValidatorFilter extends OncePerRequestFilter {
             String pilotRole = JwtUtils.extractPilotRole(jwt);
 
             // Validate presence of required claims
-            if (isEmpty(userRole) || isEmpty(pilotCode) || isEmpty(pilotRole)) {
+            if ((isEmpty(userRole) || isEmpty(pilotCode) || isEmpty(pilotRole)) && (!jwt.getClaims().containsKey("client_id") && !jwt.getClaims().containsKey("clientName"))){
                 // Headers
                 response.setStatus(HttpStatus.FORBIDDEN.value());
                 response.setContentType("application/json");

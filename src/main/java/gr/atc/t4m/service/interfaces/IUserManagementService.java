@@ -28,6 +28,8 @@ public interface IUserManagementService {
 
     List<UserDto> retrieveUsersByPilotCode(String pilotCode);
 
+    List<UserDto> retrieveUsersByPilotCodeAndUserRole(String pilotCode, String userRole);
+
     UserDto retrieveUserById(String userId);
 
     void changePassword(PasswordsDto passwords, String userId);

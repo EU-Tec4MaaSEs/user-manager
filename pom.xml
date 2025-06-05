@@ -151,13 +151,39 @@
 			<build>
 				<plugins>
 					<plugin>
+						<groupId>org.springframework.boot</groupId>
+						<artifactId>spring-boot-maven-plugin</artifactId>
+						<executions>
+							<execution>
+								<id>process-aot</id>
+								<goals>
+									<goal>process-aot</goal>
+								</goals>
+							</execution>
+						</executions>
+					</plugin>
+					<plugin>
 						<groupId>org.graalvm.buildtools</groupId>
 						<artifactId>native-maven-plugin</artifactId>
 						<configuration>
 							<mainClass>gr.atc.t4m.T4mUserManagerApplication</mainClass>
 							<imageName>t4m-user-manager</imageName>
+							<jvmArgs>
+								<!-- Increase heap for native image build process -->
+								<jvmArg>-Xmx6g</jvmArg>
+								<jvmArg>-Xms2g</jvmArg>
+								<!-- Reduce compilation overhead -->
+								<jvmArg>-XX:+TieredCompilation</jvmArg>
+								<jvmArg>-XX:TieredStopAtLevel=1</jvmArg>
+							</jvmArgs>
 							<buildArgs>
 								<buildArg>-O3</buildArg>
+								<!-- Virtual threads support -->
+								<buildArg>--enable-preview</buildArg>
+								<!-- Better startup -->
+								<buildArg>-H:+RemoveSaturatedTypeFlows</buildArg>
+								<buildArg>-H:+ReportExceptionStackTraces</buildArg>
+								<buildArg>-H:+AllowVMInspection</buildArg>
 							</buildArgs>
 						</configuration>
 						<executions>
@@ -242,6 +268,14 @@
 						</exclude>
 					</excludes>
 				</configuration>
+				<executions>
+					<execution>
+						<id>process-aot</id>
+						<goals>
+							<goal>process-aot</goal>
+						</goals>
+					</execution>
+				</executions>
 			</plugin>
 		</plugins>
 	</build>

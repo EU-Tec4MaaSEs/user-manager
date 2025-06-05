@@ -4,6 +4,7 @@ import gr.atc.t4m.dto.UserDto;
 import gr.atc.t4m.dto.operations.PasswordsDto;
 import gr.atc.t4m.dto.operations.UserCreationDto;
 import gr.atc.t4m.config.properties.KeycloakProperties;
+import gr.atc.t4m.service.interfaces.IEmailService;
 import gr.atc.t4m.service.interfaces.IKeycloakAdminService;
 import gr.atc.t4m.service.interfaces.IUserManagementService;
 import jakarta.validation.ValidationException;
@@ -33,17 +34,22 @@ public class UserManagementService implements IUserManagementService {
 
     private final IKeycloakAdminService adminService;
 
+    private final IEmailService emailService;
+
     private static final String USER_ACTIVATION_ERROR = "User is not activated. Password can not be reset";
     private static final String ACTIVATION_TOKEN = "activation_token";
     private static final String ACTIVATION_EXPIRY = "activation_expiry";
     private static final String RESET_TOKEN = "reset_token";
+    private static final String GLOBAL_PILOT_CODE = "ALL";
+    private static final String SUPER_ADMIN_ROLE = "SUPER_ADMIN";
 
     private final String realm;
 
-    public UserManagementService(Keycloak keycloak, KeycloakProperties keycloakProperties, IKeycloakAdminService adminService) {
+    public UserManagementService(Keycloak keycloak, KeycloakProperties keycloakProperties, IKeycloakAdminService adminService, IEmailService emailService) {
         this.keycloak = keycloak;
         this.keycloakProperties = keycloakProperties;
         this.adminService = adminService;
+        this.emailService = emailService;
         realm = keycloakProperties.realm();
     }
 
@@ -234,13 +240,15 @@ public class UserManagementService implements IUserManagementService {
      * Helper method to define if input data are available in Keycloak
      */
     boolean hasValidKeycloakAttributes(UserDto user) {
-        if (user.getUserRole() != null) {
+        // Check valid user role but omit this check for Global Code of Super Admin
+        if (user.getUserRole() != null && !user.getUserRole().equals(SUPER_ADMIN_ROLE)) {
             boolean validRole = adminService.retrieveAllUserRoles()
                     .contains(user.getUserRole().trim().toUpperCase());
             if (!validRole) return false;
         }
 
-        if (user.getPilotCode() != null) {
+        // Check valid pilot code but omit this check for Global Code of Super Admin
+        if (user.getPilotCode() != null && !user.getPilotCode().equals(GLOBAL_PILOT_CODE)) {
             boolean validPilotCode = adminService.retrieveAllPilotCodes()
                     .contains(user.getPilotCode().trim().toUpperCase());
             if (!validPilotCode) return false;
@@ -286,20 +294,36 @@ public class UserManagementService implements IUserManagementService {
      */
     @Override
     public List<UserDto> retrieveUsersByPilotCode(String pilotCode) {
+        GroupRepresentation existingGroupRepresentation = adminService.retrieveGroupRepresentationByName(pilotCode);
+        if (existingGroupRepresentation == null)
+            throw new ResourceNotPresentException("Pilot code: '" + pilotCode + "' not found");
+
         try {
             return keycloak.realm(realm)
                     .groups()
-                    .group(pilotCode)
+                    .group(existingGroupRepresentation.getId())
                     .members()
                     .stream()
                     .map(UserDto::fromUserRepresentation)
                     .toList();
-        } catch (NotFoundException e) {
-            throw new ResourceNotPresentException("Pilot code: '" + pilotCode + "' not found");
-        } catch (Exception e) {
+        }  catch (Exception e) {
             log.error("Error retrieving users by pilot code: {}", e.getMessage(), e);
             throw new KeycloakException("Error retrieving users for pilot code '" + pilotCode, e);
         }
+    }
+
+    /**
+     * Retrieve all users for a specific Pilot and User Role
+     *
+     * @param pilotCode : Pilot Code
+     * @param userRole  : User Role
+     * @return List<UserDto>
+     */
+    @Override
+    public List<UserDto> retrieveUsersByPilotCodeAndUserRole(String pilotCode, String userRole) {
+       return retrieveUsersByPilotCode(pilotCode).stream()
+                .filter(user -> user.getUserRole().equals(userRole))
+                .toList();
     }
 
     /**
@@ -375,9 +399,7 @@ public class UserManagementService implements IUserManagementService {
         String resetToken = user.getId().concat("@").concat(updatedUserData.getResetToken());
 
         String fullName = user.getFirstName() + " " + user.getLastName();
-        // TODO: Send email to user with reset token
-        //emailService.sendResetPasswordLink(fullName, email, resetToken);
-
+        emailService.sendResetPasswordLink(fullName, email, resetToken);
     }
 
     /**
@@ -407,6 +429,7 @@ public class UserManagementService implements IUserManagementService {
 
         // Update user's password
         UserDto updatedUserData = new UserDto();
+        updatedUserData.setUserId(userId);
         updatedUserData.setPassword(password);
         updatedUserData.setResetToken(resetToken);
         updatedUserData.setTokenFlagRaised(true);
