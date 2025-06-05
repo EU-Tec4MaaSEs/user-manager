@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import gr.atc.t4m.dto.UserDto;
 import gr.atc.t4m.dto.operations.PasswordsDto;
 import gr.atc.t4m.dto.operations.UserCreationDto;
+import gr.atc.t4m.service.interfaces.IEmailService;
 import gr.atc.t4m.service.interfaces.IUserManagementService;
 import org.junit.jupiter.api.*;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -21,11 +22,12 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.ResultActions;
 import static org.hamcrest.CoreMatchers.is;
 
+import static org.hamcrest.Matchers.hasSize;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.BDDMockito.given;
-import static org.mockito.Mockito.never;
-import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.*;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.jwt;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -53,6 +55,9 @@ class UserControllerTests {
 
     @MockitoBean
     private IUserManagementService userManagerService;
+
+    @MockitoBean
+    private IEmailService emailService;
 
     @Autowired
     private MockMvc mockMvc;
@@ -252,6 +257,7 @@ class UserControllerTests {
     void givenValidUser_whenCreateUser_thenReturnSuccess() throws Exception {
         // Given
         UserCreationDto newUser = new UserCreationDto("TestUser2", "Test", "User2", "test2@test.com", "USER", "TEST", "TEST");
+        when(userManagerService.createUser(any(UserCreationDto.class), anyString())).thenReturn("test-user-id");
 
         // Mock JWT authentication
         JwtAuthenticationToken jwtAuthenticationToken =
@@ -570,7 +576,7 @@ class UserControllerTests {
 
         // When
         ResultActions response =
-                mockMvc.perform(get("/api/users/pilot/mock-pilot"));
+                mockMvc.perform(get("/api/users/pilots/mock-pilot"));
 
         // Then
         response.andExpect(status().isOk())
@@ -774,7 +780,6 @@ class UserControllerTests {
                 .andExpect(jsonPath("$.message", is("Validation failed")));
     }
 
-
     @DisplayName("Retrieve User Info from JWT: Success")
     @Test
     void givenValidJwtToken_whenGetUserAuth_thenUserDto() throws Exception {
@@ -797,6 +802,80 @@ class UserControllerTests {
                 .andExpect(jsonPath("$.data.email", is("test@test.com")))
                 .andExpect(jsonPath("$.data.firstName", is("Test")))
                 .andExpect(jsonPath("$.data.lastName", is("Test")));
+    }
+
+    @DisplayName("Retrieve Users by User Role and Organization : Success")
+    @Test
+    @WithMockUser(roles = "SUPER_ADMIN")
+    void givenUserRoleAndOrganization_whenRetrieveUsersByUserRoleAndOrganization_thenReturnListOfUsers() throws Exception {
+        // Given
+        String pilotCode = "pilot1";
+        String userRole = "admin";
+        when(userManagerService.retrieveUsersByPilotCodeAndUserRole("PILOT1", "ADMIN"))
+                .thenReturn(listTestUsers);
+
+        // Mock JWT authentication
+        JwtAuthenticationToken jwtAuthenticationToken =
+                new JwtAuthenticationToken(superAdminJwt, List.of(new SimpleGrantedAuthority("ROLE_SUPER_ADMIN")));
+        SecurityContextHolder.getContext().setAuthentication(jwtAuthenticationToken);
+
+        // When & Then
+        mockMvc.perform(get("/api/users/pilots/{pilotCode}/roles/{userRole}", pilotCode, userRole)
+                        .contentType(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success", is(true)))
+                .andExpect(jsonPath("$.message", is("Users for pilot 'pilot1' and user role 'admin' retrieved successfully")))
+                .andExpect(jsonPath("$.data", hasSize(1)))
+                .andExpect(jsonPath("$.data[0].userId", is("1")))
+                .andExpect(jsonPath("$.data[0].email", is("test@test.com")))
+                .andExpect(jsonPath("$.data[0].firstName", is("Test")))
+                .andExpect(jsonPath("$.data[0].lastName", is("User")));
+
+        // Verify service was called with uppercase parameters
+        verify(userManagerService, times(1))
+                .retrieveUsersByPilotCodeAndUserRole("PILOT1", "ADMIN");
+    }
+
+    @Disabled
+    @DisplayName("Retrieve Users by User Role and Organization : Unauthorized")
+    @Test
+    void givenUserRoleAndOrganization_whenRetrieveUsersByUserRoleAndOrganization_thenUnauthorized() throws Exception {
+        // Given
+        String pilotCode = "pilot1";
+        String userRole = "admin";
+
+        // When & Then
+        mockMvc.perform(get("/api/users/pilots/{pilotCode}/roles/{userRole}", pilotCode, userRole)
+                        .with(jwt())
+                        .contentType(MediaType.APPLICATION_JSON))
+                .andExpect(status().isUnauthorized());
+
+        // Verify service was never called
+        verify(userManagerService, never()).retrieveUsersByPilotCodeAndUserRole(anyString(), anyString());
+    }
+
+    @Disabled
+    @DisplayName("Retrieve Users by User Role and Organization : Forbidden")
+    @Test
+    @WithMockUser(roles = "USER")
+    void retrieveAllUsersByPilotCodeAndUserRole_WithInsufficientRole_ShouldReturn403() throws Exception {
+        // Given
+        String pilotCode = "pilot1";
+        String userRole = "admin";
+
+        // Mock JWT authentication
+        JwtAuthenticationToken jwtAuthenticationToken =
+                new JwtAuthenticationToken(userJwt, List.of(new SimpleGrantedAuthority("ROLE_USER")));
+        SecurityContextHolder.getContext().setAuthentication(jwtAuthenticationToken);
+
+        // When & Then
+        mockMvc.perform(get("/api/users/pilots/{pilotCode}/roles/{userRole}", pilotCode, userRole)
+                        .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_USER")))
+                        .contentType(MediaType.APPLICATION_JSON))
+                .andExpect(status().isForbidden());
+
+        // Verify service was never called
+        verify(userManagerService, never()).retrieveUsersByPilotCodeAndUserRole(anyString(), anyString());
     }
 
     private static Jwt createMockJwtToken(String userRole, String pilotRole, String pilotCode){

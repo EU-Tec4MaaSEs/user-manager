@@ -4,6 +4,7 @@ import gr.atc.t4m.config.properties.KeycloakProperties;
 import gr.atc.t4m.dto.UserDto;
 import gr.atc.t4m.dto.operations.PasswordsDto;
 import gr.atc.t4m.dto.operations.UserCreationDto;
+import gr.atc.t4m.service.interfaces.IEmailService;
 import gr.atc.t4m.service.interfaces.IKeycloakAdminService;
 import jakarta.validation.ValidationException;
 import jakarta.ws.rs.NotFoundException;
@@ -31,6 +32,7 @@ import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.*;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
@@ -46,6 +48,9 @@ class UserManagementServiceTests {
 
     @Mock
     private IKeycloakAdminService adminService;
+
+    @Mock
+    private IEmailService emailService;
 
     @Mock
     private RealmResource realmResource;
@@ -769,11 +774,15 @@ class UserManagementServiceTests {
         userRep.setId(TEST_USER_ID);
         userRep.setEmail(TEST_EMAIL);
 
+        GroupRepresentation groupRepr = new GroupRepresentation();
+        groupRepr.setId("test-id");
+        when(adminService.retrieveGroupRepresentationByName(anyString())).thenReturn(groupRepr);
+
         GroupResource groupResource = mock(GroupResource.class);
         when(groupResource.members()).thenReturn(List.of(userRep));
 
         GroupsResource groupsResource = mock(GroupsResource.class);
-        when(groupsResource.group(TEST_PILOT_CODE)).thenReturn(groupResource);
+        when(groupsResource.group(anyString())).thenReturn(groupResource);
 
         when(realmResource.groups()).thenReturn(groupsResource);
 
@@ -791,17 +800,41 @@ class UserManagementServiceTests {
     @Test
     void givenInvalidPilotCode_whenRetrieveUsers_thenThrowResourceNotPresentException() {
         // Given
-        GroupsResource groupsResource = mock(GroupsResource.class);
-        when(groupsResource.group(TEST_PILOT_CODE)).thenThrow(NotFoundException.class);
-
-        when(realmResource.groups()).thenReturn(groupsResource);
-
-
+        when(adminService.retrieveGroupRepresentationByName(anyString())).thenReturn(null);
         // When & Then
         assertThrows(ResourceNotPresentException.class,
                 () -> userManagementService.retrieveUsersByPilotCode(TEST_PILOT_CODE));
     }
 
+    // ==================== Retrieve Users by Pilot Code and User Role Tests ====================
+    @DisplayName("Retrieve Users by Pilot Code and User Role : Success")
+    @Test
+    void givenPilotCodeAndUserRole_whenRetrieveUsersByPilotCodeAndUserRole_thenReturnUserList() {
+        // Given
+        String pilotCode = "TEST_PILOT";
+        String userRole = "TEST_ROLE";
+        UserDto mockUser = new UserDto();
+        mockUser.setPilotCode("TEST_PILOT");
+        mockUser.setUserRole("TEST_ROLE");
+        mockUser.setUserId("ID-1");
+        List<UserDto> mockUsersFromPilot = List.of(mockUser);
+
+        // Mock the retrieveUsersByPilotCode method to return all users
+        UserManagementService spyService = spy(userManagementService);
+        doReturn(mockUsersFromPilot).when(spyService).retrieveUsersByPilotCode(pilotCode);
+
+        // When
+        List<UserDto> result = spyService.retrieveUsersByPilotCodeAndUserRole(pilotCode, userRole);
+
+        // Then
+        assertThat(result).hasSize(1);
+        assertThat(result).extracting(UserDto::getUserRole).contains("TEST_ROLE");
+        assertThat(result).extracting(UserDto::getUserId).contains("ID-1");
+        assertThat(result).extracting(UserDto::getPilotCode).contains("TEST_PILOT");
+
+        // Verify that retrieveUsersByPilotCode was called once
+        verify(spyService, times(1)).retrieveUsersByPilotCode(pilotCode);
+    }
 
     // ==================== Retrieve User by ID Test ====================
     @DisplayName("Retrieve User by ID : Success")
