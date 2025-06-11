@@ -44,7 +44,7 @@ jobs:
         context: .
         file: Dockerfile
         push: true
-        tags: ghcr.io/modapto/${{ env.DOCKER_IMAGE }}:latest
+        tags: ghcr.io/eu-tec4maases/${{ env.DOCKER_IMAGE }}:latest
         cache-from: type=gha
         cache-to: type=gha,mode=max
         build-args: |
