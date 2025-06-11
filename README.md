@@ -25,8 +25,8 @@ Utilizes and implements the following concepts:
 1. Clone the repository:
 
     ```sh
-    git clone https://[username]@bitbucket.org/atc-code/ilab-tec4maases-user-manager.git
-    cd ilab-tec4maases-user-manager
+    git clone https://github.com/EU-Tec4MaaSEs/user-manager.git
+    cd user-manager
     ```
 
 2. Install the dependencies:
