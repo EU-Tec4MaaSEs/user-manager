@@ -101,6 +101,8 @@ For local deployment Docker containers can be utilized to deploy the microservic
     KEYCLOAK_REALM=..
     KEYCLOAK_CLIENT_ID=..
     KEYCLOAK_CLIENT_SECRET=..
+    KEYCLOAK_ADMIN_USERNAME=..
+    KEYCLOAK_ADMIN_PASSWORD=..
     CORS_DOMAINS=..
     MAIL_HOST=..
     MAIL_PORT=..
