@@ -16,6 +16,7 @@ RUN ./mvnw clean package -Pnative -DskipTests -B \
     -Dspring.aot.enabled=true \
     -Dspring.native.remove-unused-autoconfig=true \
     -Dspring.jpa.defer-datasource-initialization=true \
+    -DnativeImageArgs="--no-server -J-Xmx6G -J-Xms2G --enable-preview -H:+ReportExceptionStackTraces" \
     && strip target/t4m-user-manager
 
 # Second stage: Runtime Image
