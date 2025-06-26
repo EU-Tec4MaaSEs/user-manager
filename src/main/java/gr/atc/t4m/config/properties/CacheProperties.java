@@ -8,6 +8,5 @@ public record CacheProperties(
         int pilotCodesCacheTtl,
         int userRolesCacheTtl,
         int usersCacheTtl,
-        int pilotUsersCacheTtl,
-        int size
+        int maxSize
 ) { }

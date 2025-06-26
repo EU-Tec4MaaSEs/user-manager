@@ -1,6 +1,5 @@
 package gr.atc.t4m.controller;
 
-import gr.atc.t4m.dto.UserDto;
 import gr.atc.t4m.dto.UserRoleDto;
 import gr.atc.t4m.dto.operations.PilotCreationDto;
 import gr.atc.t4m.dto.operations.UserRoleCreationDto;
@@ -351,48 +350,6 @@ public class AdminController {
             userRoles = adminService.retrieveAllUserRolesByTypeAndPilot(pilotRole.trim().toUpperCase(), pilot.trim().toUpperCase());
 
         return new ResponseEntity<>(BaseAppResponse.success(userRoles, "User roles retrieved successfully"), HttpStatus.OK);
-    }
-
-    /**
-     * GET all users associated with a Role
-     *
-     * @param jwt : JWT Token
-     * @param userRole : User Role
-     * @return List<String> : List of User Roles
-     */
-    @Operation(summary = "Retrieve all users associated with a specific user role", security = @SecurityRequirement(name = "bearerToken"))
-    @ApiResponses(value = {
-            @ApiResponse(responseCode = "200", description = "Users associated with the role retrieved successfully"),
-            @ApiResponse(responseCode = "401", description = "Authentication process failed!"),
-            @ApiResponse(responseCode = "403", description = "Invalid authorization parameters. Check JWT or CSRF Token"),
-            @ApiResponse(responseCode = "403", description = "Token inserted is invalid. It does not contain any information about the user role or the pilot"),
-            @ApiResponse(responseCode = "403", description = "Non 'SUPER-ADMIN' users can not retrieve uses of role 'SUPER-ADMIN'"),
-            @ApiResponse(responseCode = "403", description = "User of role 'ADMIN' or 'USER' can only retrieve users assigned to a specific User Role only within their organization"),
-            @ApiResponse(responseCode = "403", description = "Token inserted is invalid. It does not contain any information about the user role")
-    })
-    @GetMapping("/roles/{userRole}/users")
-    public ResponseEntity<BaseAppResponse<List<UserDto>>> getAllUsersByUserRole(@AuthenticationPrincipal Jwt jwt,
-                                                                                @org.eclipse.microprofile.openapi.annotations.parameters.Parameter(name = "userRole",
-                                                                                        description = "User role existent in Keycloak",
-                                                                                        required = true)
-                                                                                @PathVariable String userRole) {
-
-        String pilotRole = JwtUtils.extractPilotRole(jwt);
-        String pilot = JwtUtils.extractPilotCode(jwt);
-        String formattedInputUserRole = userRole.trim().toUpperCase();
-
-        // Retrieve User Role given the Role Name (if exists)
-        UserRoleDto existingUserRole = adminService.retrieveUserRoleByName(formattedInputUserRole);
-
-        // Block non Super-Admin users to retrieve the list of users for 'SUPER_ADMIN' role
-        if (!pilotRole.equalsIgnoreCase(SUPER_ADMIN_ROLE) && existingUserRole.getPilotRole().equalsIgnoreCase(SUPER_ADMIN_ROLE))
-            return new ResponseEntity<>(BaseAppResponse.error(UNAUTHORIZED_ACTION, "Non 'SUPER-ADMIN' users can not retrieve uses of role 'SUPER-ADMIN'"), HttpStatus.FORBIDDEN);
-
-        // Ensure that input user role belongs to the pilot of the user requesting this resource (Non Super-Admins)
-        if (!pilotRole.equalsIgnoreCase(SUPER_ADMIN_ROLE) && !pilot.equalsIgnoreCase(existingUserRole.getPilotCode()))
-            return new ResponseEntity<>(BaseAppResponse.error(UNAUTHORIZED_ACTION, "User of role 'ADMIN' or 'USER' can only retrieve users assigned to a specific User Role only within their organization"), HttpStatus.FORBIDDEN);
-
-        return new ResponseEntity<>(BaseAppResponse.success(adminService.retrieveAllUsersByUserRole(formattedInputUserRole), "Users associated with the role retrieved successfully"), HttpStatus.OK);
     }
 
     /**

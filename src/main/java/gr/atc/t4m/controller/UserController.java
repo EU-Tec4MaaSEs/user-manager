@@ -368,6 +368,38 @@ public class UserController {
     }
 
     /**
+     * GET all users associated with a Role
+     *
+     * @param jwt : JWT Token
+     * @param userRole : User Role
+     * @return List<String> : List of User Roles
+     */
+    @Operation(summary = "Retrieve all users associated with a specific user role", security = @SecurityRequirement(name = "bearerToken"))
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Users associated with the role retrieved successfully"),
+            @ApiResponse(responseCode = "401", description = "Authentication process failed!"),
+            @ApiResponse(responseCode = "403", description = "Invalid authorization parameters. Check JWT or CSRF Token"),
+            @ApiResponse(responseCode = "403", description = "Token inserted is invalid. It does not contain any information about the user role or the pilot"),
+            @ApiResponse(responseCode = "403", description = "Non 'SUPER-ADMIN' users can not retrieve uses of role 'SUPER-ADMIN'"),
+            @ApiResponse(responseCode = "403", description = "User of role 'ADMIN' or 'USER' can only retrieve users assigned to a specific User Role only within their organization"),
+            @ApiResponse(responseCode = "403", description = "Token inserted is invalid. It does not contain any information about the user role")
+    })
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'ADMIN')")
+    @GetMapping("/roles/{userRole}")
+    public ResponseEntity<BaseAppResponse<List<UserDto>>> retrieve(@AuthenticationPrincipal Jwt jwt,
+                                                                   @Parameter(name = "userRole",
+                                                                           description = "User role existent in Keycloak",
+                                                                           required = true)
+                                                                   @PathVariable String userRole) {
+
+        String jwtPilotRole = JwtUtils.extractPilotRole(jwt);
+        String jwtPilot = JwtUtils.extractPilotCode(jwt);
+        String formattedInputUserRole = userRole.trim().toUpperCase();
+
+        return new ResponseEntity<>(BaseAppResponse.success(userManagerService.retrieveAllUsersByUserRole(jwtPilotRole, jwtPilot, formattedInputUserRole), "Users associated with the role retrieved successfully"), HttpStatus.OK);
+    }
+
+    /**
      * Retrieve all users from Keycloak for a specific Pilot and User Role
      *
      * @return List<UserDTO>
@@ -463,7 +495,7 @@ public class UserController {
             @ApiResponse(responseCode = "403", description = "Invalid JWT token attributes | Thrown when some attributes are missing from the JWT Token")
     })
     @GetMapping("/auth/info")
-    public ResponseEntity<BaseAppResponse<UserDto>> getUserAuthInfo(@AuthenticationPrincipal Jwt jwt) {
+    public ResponseEntity<BaseAppResponse<UserDto>> retrieveUserAuthInfo(@AuthenticationPrincipal Jwt jwt) {
         UserDto currentUser = UserDto.builder()
                 .userId(JwtUtils.extractUserId(jwt))
                 .email(JwtUtils.extractUserEmail(jwt))

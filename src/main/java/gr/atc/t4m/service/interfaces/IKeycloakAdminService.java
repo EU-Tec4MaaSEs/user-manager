@@ -50,8 +50,6 @@ public interface IKeycloakAdminService {
 
     UserRoleDto retrieveUserRoleByName(String userRole);
 
-    List<UserDto> retrieveAllUsersByUserRole(String userRole);
-
     void createUserRole(UserRoleCreationDto newUserRole);
 
     void deleteUserRole(String userRole);

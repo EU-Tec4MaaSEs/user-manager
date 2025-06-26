@@ -10,7 +10,7 @@
 	</parent>
 	<groupId>gr.atc</groupId>
 	<artifactId>t4m-user-manager</artifactId>
-	<version>0.5-SNAPSHOT</version>
+	<version>v0.5</version>
 	<name>t4m-user-manager</name>
 	<description>Service to manage User and Roles in T4M project via Keycloak Resource Server</description>
 	<licenses>
@@ -170,21 +170,27 @@
 							<imageName>t4m-user-manager</imageName>
 							<jvmArgs>
 								<!-- Increase heap for native image build process -->
-								<jvmArg>-Xmx6g</jvmArg>
-								<jvmArg>-Xms2g</jvmArg>
+								<jvmArg>-Xmx4g</jvmArg>
+								<jvmArg>-Xms1g</jvmArg>
 								<!-- Reduce compilation overhead -->
 								<jvmArg>-XX:+TieredCompilation</jvmArg>
 								<jvmArg>-XX:TieredStopAtLevel=1</jvmArg>
 							</jvmArgs>
 							<buildArgs>
-								<buildArg>-O3</buildArg>
+								<buildArg>-O1</buildArg>
 								<!-- Virtual threads support -->
 								<buildArg>--enable-preview</buildArg>
 								<!-- Better startup -->
-								<buildArg>-H:+RemoveSaturatedTypeFlows</buildArg>
+								<buildArg>-H:NumberOfThreads=4</buildArg>
+								<!-- Skip unnecessary analysis -->
+								<buildArg>-H:-CheckToolchain</buildArg>
+								<!-- Faster builds -->
 								<buildArg>-H:+ReportExceptionStackTraces</buildArg>
+								<buildArg>-H:+RemoveSaturatedTypeFlows</buildArg>
 								<buildArg>-H:+AllowVMInspection</buildArg>
 							</buildArgs>
+							<!-- Speed up incremental builds -->
+							<useArgFile>true</useArgFile>
 						</configuration>
 						<executions>
 							<execution>

@@ -1,7 +1,6 @@
 package gr.atc.t4m.service;
 
 import gr.atc.t4m.dto.PilotDto;
-import gr.atc.t4m.dto.UserDto;
 import gr.atc.t4m.dto.UserRoleDto;
 import gr.atc.t4m.dto.operations.PilotCreationDto;
 
@@ -10,7 +9,6 @@ import static gr.atc.t4m.exception.CustomExceptions.*;
 import gr.atc.t4m.dto.operations.UserRoleCreationDto;
 import gr.atc.t4m.config.properties.KeycloakProperties;
 import gr.atc.t4m.service.interfaces.IKeycloakAdminService;
-import jakarta.ws.rs.NotFoundException;
 import lombok.extern.slf4j.Slf4j;
 import org.keycloak.admin.client.Keycloak;
 import org.keycloak.representations.idm.*;
@@ -433,7 +431,7 @@ public class KeycloakAdminService implements IKeycloakAdminService {
      * @return List<String>
      */
     @Override
-    @Cacheable(value = "userRoles", key = "#pilotRole + #pilotCode")
+    @Cacheable(value = "userRoles", key = "#pilotRole + '::' #pilotCode")
     public List<String> retrieveAllUserRolesByTypeAndPilot(String pilotRole, String pilotCode) {
         List<RoleRepresentation> clientRoles = retrieveAllClientRoleRepresentations();
 
@@ -465,32 +463,6 @@ public class KeycloakAdminService implements IKeycloakAdminService {
             throw new ResourceNotPresentException("Role '" + userRole.toUpperCase() + "' not found");
 
         return UserRoleDto.toUserRoleDTO(existingRepresentation);
-    }
-
-    /**
-     * Retrieve all Users given a specified User Role (if exists)
-     *
-     * @param userRole : User Role
-     * @return List<String>
-     * @throws ResourceNotPresentException : Thrown if User Role not found
-     */
-    @Override
-    public List<UserDto> retrieveAllUsersByUserRole(String userRole) {
-        try {
-            return keycloak.realm(realm)
-                    .clients()
-                    .get(retrieveClientId())
-                    .roles()
-                    .get(userRole)
-                    .getUserMembers()
-                    .stream()
-                    .map(UserDto::fromUserRepresentation)
-                    .toList();
-        } catch (NotFoundException e) {
-            throw new ResourceNotPresentException("Role '" + userRole + "' not found");
-        } catch (Exception e) {
-            throw new KeycloakException("Error retrieving users by specified role", e);
-        }
     }
 
     /**
