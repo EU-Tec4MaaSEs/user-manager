@@ -798,12 +798,9 @@ class UserManagementServiceTests {
 
         UserRoleDto mockUserRole = UserRoleDto.builder()
                 .name(TEST_USER_ROLE)
-                .pilotRole(TEST_PILOT_ROLE)
-                .pilotCode(TEST_PILOT_CODE)
+                .globalName(TEST_USER_ROLE)
+                .description("Test description")
                 .build();
-
-        // Mock adminService.retrieveUserRoleByName()
-        when(adminService.retrieveUserRoleByName(TEST_USER_ROLE)).thenReturn(mockUserRole);
 
         // Mock adminService.retrieveClientId()
         when(adminService.retrieveClientId()).thenReturn("client-UUID");
@@ -854,11 +851,10 @@ class UserManagementServiceTests {
 
         UserRoleDto mockUserRole = UserRoleDto.builder()
                 .name(TEST_USER_ROLE)
-                .pilotRole("ADMIN")
-                .pilotCode(TEST_PILOT_CODE)
+                .globalName(TEST_USER_ROLE)
+                .description("Test description")
                 .build();
 
-        when(adminService.retrieveUserRoleByName(TEST_USER_ROLE)).thenReturn(mockUserRole);
         when(adminService.retrieveClientId()).thenReturn("client-UUID");
 
         when(keycloak.realm(anyString())).thenReturn(realmResource);
@@ -886,11 +882,9 @@ class UserManagementServiceTests {
         // Given
         UserRoleDto mockUserRole = UserRoleDto.builder()
                 .name("SUPER_ADMIN_ROLE")
-                .pilotRole("SUPER_ADMIN")
-                .pilotCode(TEST_PILOT_CODE)
+                .globalName(TEST_USER_ROLE)
+                .description("Test description")
                 .build();
-
-        when(adminService.retrieveUserRoleByName("SUPER_ADMIN")).thenReturn(mockUserRole);
 
         // When & Then - Admin trying to access Super Admin role
         assertThrows(ForbiddenAccessException.class, () -> {
@@ -902,39 +896,16 @@ class UserManagementServiceTests {
         });
     }
 
-    @DisplayName("Retrieve All Users by User Role : Forbidden - Different Pilot Access")
-    @Test
-    void givenDifferentPilot_whenRetrieveAllUsersByUserRole_thenThrowForbiddenAccessException() {
-        // Given
-        UserRoleDto mockUserRole = UserRoleDto.builder()
-                .name(TEST_USER_ROLE)
-                .pilotRole("ADMIN")
-                .pilotCode("DIFFERENT_PILOT") // Different from JWT pilot
-                .build();
-
-        when(adminService.retrieveUserRoleByName(TEST_USER_ROLE)).thenReturn(mockUserRole);
-
-        // When & Then - Admin trying to access role from different pilot
-        assertThrows(ForbiddenAccessException.class, () -> {
-            userManagementService.retrieveAllUsersByUserRole(
-                    "ADMIN",
-                    TEST_PILOT_CODE,
-                    TEST_USER_ROLE
-            );
-        });
-    }
-
     @DisplayName("Retrieve All Users by User Role : Not Found")
     @Test
     void givenInvalidUserRole_whenRetrieveUsersByUserRole_thenThrowResourceNotPresentException() {
         // Given
         UserRoleDto mockUserRole = UserRoleDto.builder()
                 .name(TEST_USER_ROLE)
-                .pilotRole("SUPER_ADMIN")
-                .pilotCode(TEST_PILOT_CODE)
+                .globalName(TEST_USER_ROLE)
+                .description("Test description")
                 .build();
 
-        when(adminService.retrieveUserRoleByName(TEST_USER_ROLE)).thenReturn(mockUserRole);
         when(adminService.retrieveClientId()).thenReturn("client-UUID");
 
         when(keycloak.realm(anyString())).thenReturn(realmResource);
@@ -959,11 +930,10 @@ class UserManagementServiceTests {
         // Given
         UserRoleDto mockUserRole = UserRoleDto.builder()
                 .name(TEST_USER_ROLE)
-                .pilotRole("SUPER_ADMIN")
-                .pilotCode(TEST_PILOT_CODE)
+                .globalName(TEST_USER_ROLE)
+                .description("Test description")
                 .build();
 
-        when(adminService.retrieveUserRoleByName(TEST_USER_ROLE)).thenReturn(mockUserRole);
         when(adminService.retrieveClientId()).thenReturn("client-UUID");
 
         when(keycloak.realm(anyString())).thenReturn(realmResource);

@@ -1,13 +1,9 @@
 package gr.atc.t4m.service;
 
 import gr.atc.t4m.config.properties.KeycloakProperties;
-import gr.atc.t4m.dto.UserDto;
 import gr.atc.t4m.dto.UserRoleDto;
 import gr.atc.t4m.dto.operations.PilotCreationDto;
 import gr.atc.t4m.dto.operations.UserRoleCreationDto;
-import jakarta.ws.rs.ClientErrorException;
-import jakarta.ws.rs.NotFoundException;
-import jakarta.ws.rs.core.Response;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -17,7 +13,6 @@ import org.keycloak.admin.client.resource.*;
 import org.keycloak.representations.idm.ClientRepresentation;
 import org.keycloak.representations.idm.GroupRepresentation;
 import org.keycloak.representations.idm.RoleRepresentation;
-import org.keycloak.representations.idm.UserRepresentation;
 import org.mockito.*;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.test.util.ReflectionTestUtils;
@@ -74,7 +69,6 @@ public class KeycloakAdminServiceTests {
     @InjectMocks
     private KeycloakAdminService adminService;
 
-    private static final String TEST_REALM = "test-realm";
     private static final String TEST_GROUP_NAME = "TEST_GROUP";
     private static final String TEST_GROUP_ID = "test-group-id";
     private static final String TEST_PILOT_CODE = "TEST_PILOT";
@@ -596,66 +590,24 @@ public class KeycloakAdminServiceTests {
     @DisplayName("Retrieve all User Roles : Success")
     @Test
     void whenRetrieveAllUserRoles_thenSuccess(){
-        List<RoleRepresentation> listRoleRepresentations = List.of(generateMockRoleRepresentation(TEST_USER_ROLE, TEST_PILOT_ROLE, TEST_PILOT_CODE));
+        List<RoleRepresentation> listRoleRepresentations = List.of(generateMockRoleRepresentation(TEST_USER_ROLE, TEST_USER_ROLE));
 
         KeycloakAdminService spyService = Mockito.spy(adminService);
         doReturn(listRoleRepresentations).when(spyService).retrieveAllClientRoleRepresentations();
 
-        List<String> result = spyService.retrieveAllUserRoles();
+        List<UserRoleDto> result = spyService.retrieveAllUserRoles(true);
 
-        assertEquals(List.of(TEST_USER_ROLE), result);
-    }
-
-    // ==================== Retrieve all User Roles By Pilot Tests ====================
-    @DisplayName("Retrieve all User Roles By Pilot : Success")
-    @Test
-    void givenPilotCode_whenRetrieveAllUserRolesByPilot_thenSuccess(){
-        List<RoleRepresentation> listRoleRepresentations = List.of(generateMockRoleRepresentation(TEST_USER_ROLE, TEST_PILOT_ROLE, TEST_PILOT_CODE),
-                generateMockRoleRepresentation(TEST_USER_ROLE+2, TEST_PILOT_ROLE+"2", TEST_PILOT_CODE+"2"));
-
-        KeycloakAdminService spyService = Mockito.spy(adminService);
-        doReturn(listRoleRepresentations).when(spyService).retrieveAllClientRoleRepresentations();
-
-        List<String> result = spyService.retrieveAllUserRolesByPilot(TEST_PILOT_CODE);
+        assertEquals(TEST_USER_ROLE, result.getFirst().getName());
+        assertEquals(TEST_USER_ROLE, result.getFirst().getGlobalName());
         assertEquals(1, result.size());
-        assertEquals(TEST_USER_ROLE, result.getFirst());
-    }
-    // ==================== Retrieve all User Roles By Type (Pilot Role) Tests ====================
-    @DisplayName("Retrieve all User Roles By Type : Success")
-    @Test
-    void givenPilotRole_whenRetrieveAllUserRolesByPilot_thenSuccess(){
-        List<RoleRepresentation> listRoleRepresentations = List.of(generateMockRoleRepresentation(TEST_USER_ROLE, TEST_PILOT_ROLE, TEST_PILOT_CODE),
-                generateMockRoleRepresentation(TEST_USER_ROLE+2, TEST_PILOT_ROLE+"2", TEST_PILOT_CODE+"2"));
-
-        KeycloakAdminService spyService = Mockito.spy(adminService);
-        doReturn(listRoleRepresentations).when(spyService).retrieveAllClientRoleRepresentations();
-
-        List<String> result = spyService.retrieveAllUserRolesByType(TEST_PILOT_ROLE);
-        assertEquals(1, result.size());
-        assertEquals(TEST_USER_ROLE, result.getFirst());
     }
 
-    // ==================== Retrieve all User Roles By Type (Pilot Role) and Pilot Tests ====================
-    @DisplayName("Retrieve all User Roles By Type and Pilot : Success")
-    @Test
-    void givenPilotRoleAndPilot_whenRetrieveAllUserRolesByTypeAndPilot_thenSuccess(){
-        List<RoleRepresentation> listRoleRepresentations = List.of(generateMockRoleRepresentation(TEST_USER_ROLE, TEST_PILOT_ROLE, TEST_PILOT_CODE),
-                generateMockRoleRepresentation(TEST_USER_ROLE+2, TEST_PILOT_ROLE+"2", TEST_PILOT_CODE),
-                generateMockRoleRepresentation(TEST_USER_ROLE+2, TEST_PILOT_ROLE, TEST_PILOT_CODE+"2"));
 
-        KeycloakAdminService spyService = Mockito.spy(adminService);
-        doReturn(listRoleRepresentations).when(spyService).retrieveAllClientRoleRepresentations();
-
-        List<String> result = spyService.retrieveAllUserRolesByTypeAndPilot(TEST_PILOT_ROLE, TEST_PILOT_CODE);
-        assertEquals(1, result.size());
-        assertEquals(TEST_USER_ROLE, result.getFirst());
-    }
-
-    // ==================== Retrieve User Role By Name Tests ====================\
+    // ==================== Retrieve User Role By Name Tests ====================
     @DisplayName("Retrieve User Role by Name : Success")
     @Test
     void whenRetrieveUserRoleByName_thenReturnUserRoleDto() {
-        RoleRepresentation roleRep = generateMockRoleRepresentation(TEST_USER_ROLE, TEST_PILOT_ROLE, TEST_PILOT_CODE);
+        RoleRepresentation roleRep = generateMockRoleRepresentation(TEST_USER_ROLE, TEST_USER_ROLE);
 
         KeycloakAdminService spyService = Mockito.spy(adminService);
         doReturn(roleRep).when(spyService).retrieveClientRoleRepresentationByName(TEST_USER_ROLE);
@@ -682,7 +634,7 @@ public class KeycloakAdminServiceTests {
     void givenUserRoleData_whenCreateUserRole_thenSuccess() {
         ReflectionTestUtils.setField(adminService, "clientId", "client-UUID");
 
-        UserRoleCreationDto dto = new UserRoleCreationDto(TEST_USER_ROLE, TEST_PILOT_CODE, TEST_PILOT_ROLE, null);
+        UserRoleCreationDto dto = new UserRoleCreationDto(TEST_USER_ROLE, TEST_USER_ROLE, "TEST_DESCRIPTION");
         KeycloakAdminService spyService = Mockito.spy(adminService);
         doReturn(null).when(spyService).retrieveClientRoleRepresentationByName(TEST_USER_ROLE);
 
@@ -705,7 +657,7 @@ public class KeycloakAdminServiceTests {
         KeycloakAdminService spyService = Mockito.spy(adminService);
         doReturn(existing).when(spyService).retrieveClientRoleRepresentationByName(TEST_USER_ROLE);
 
-        UserRoleCreationDto dto = new UserRoleCreationDto(TEST_USER_ROLE, TEST_PILOT_CODE, TEST_PILOT_ROLE, null);
+        UserRoleCreationDto dto = new UserRoleCreationDto(TEST_USER_ROLE, TEST_USER_ROLE, "TEST_DESCRIPTION");
 
         assertThrows(ResourceAlreadyExistsException.class, () -> {
             spyService.createUserRole(dto);
@@ -717,7 +669,7 @@ public class KeycloakAdminServiceTests {
     void givenUserRoleData_whenCreateUserRole_thenThrowKeycloakException() {
         ReflectionTestUtils.setField(adminService, "clientId", "client-UUID");
 
-        UserRoleCreationDto dto = new UserRoleCreationDto(TEST_USER_ROLE, TEST_PILOT_CODE, TEST_PILOT_ROLE, null);
+        UserRoleCreationDto dto = new UserRoleCreationDto(TEST_USER_ROLE, TEST_USER_ROLE, "TEST_DESCRIPTION");
 
         KeycloakAdminService spyService = Mockito.spy(adminService);
         doReturn(null).when(spyService).retrieveClientRoleRepresentationByName(TEST_USER_ROLE);
@@ -737,7 +689,7 @@ public class KeycloakAdminServiceTests {
     @DisplayName("Delete User Role : Success")
     @Test
     void givenUserRole_whenDeleteUserRole_thenSuccess() {
-        RoleRepresentation roleRep = generateMockRoleRepresentation(TEST_USER_ROLE, TEST_PILOT_ROLE, TEST_PILOT_CODE);
+        RoleRepresentation roleRep = generateMockRoleRepresentation(TEST_USER_ROLE, TEST_USER_ROLE);
 
         ReflectionTestUtils.setField(adminService, "clientId", "client-UUID");
         KeycloakAdminService spyService = Mockito.spy(adminService);
@@ -765,7 +717,7 @@ public class KeycloakAdminServiceTests {
     @DisplayName("Delete User Role : Keycloak Failure")
     @Test
     void givenUserRole_whenDeleteUserRole_thenThrowKeycloakException() {
-        RoleRepresentation roleRep = generateMockRoleRepresentation(TEST_USER_ROLE, TEST_PILOT_ROLE, TEST_PILOT_CODE);
+        RoleRepresentation roleRep = generateMockRoleRepresentation(TEST_USER_ROLE, TEST_USER_ROLE);
 
         ReflectionTestUtils.setField(adminService, "clientId", "client-UUID");
         KeycloakAdminService spyService = Mockito.spy(adminService);
@@ -787,8 +739,7 @@ public class KeycloakAdminServiceTests {
     void givenUserRoleData_whenUpdateUserRole_thenSuccess() {
         UserRoleDto dto = new UserRoleDto();
         dto.setName("ANOTHER_NAME");
-        dto.setPilotCode("ANOTHER_PILOT_CODE");
-        dto.setPilotRole("ANOTHER_PILOT_ROLE");
+        dto.setGlobalName("ANOTHER_NAME_GLOBAL");
         dto.setDescription("ANOTHER_DESCRIPTION");
 
         RoleRepresentation existing = new RoleRepresentation();
@@ -807,8 +758,7 @@ public class KeycloakAdminServiceTests {
         RoleRepresentation updated = UserRoleDto.toRoleRepresentation(dto, existing);
         assertEquals(updated.getDescription(), dto.getDescription());
         assertEquals(updated.getName(), dto.getName());
-        assertEquals(updated.getAttributes().get("pilot_role").getFirst(), dto.getPilotRole());
-        assertEquals(updated.getAttributes().get("pilot_code").getFirst(), dto.getPilotCode());
+        assertEquals(updated.getAttributes().get("global_name").getFirst(), dto.getGlobalName());
 
         when(keycloak.realm(anyString())).thenReturn(realmResource);
         when(realmResource.clients()).thenReturn(clientsResource);
@@ -825,8 +775,7 @@ public class KeycloakAdminServiceTests {
     void givenUserRoleData_whenUpdateUserRole_thenThrowNotFoundException() {
         UserRoleDto dto = new UserRoleDto();
         dto.setName(TEST_USER_ROLE);
-        dto.setPilotCode(TEST_PILOT_CODE);
-        dto.setPilotRole(TEST_PILOT_ROLE);
+        dto.setGlobalName(TEST_USER_ROLE);
         dto.setDescription("TEST_DESCRIPTION");
 
         KeycloakAdminService spyService = Mockito.spy(adminService);
@@ -840,8 +789,8 @@ public class KeycloakAdminServiceTests {
     void givenUserRoleData_whenUpdateUserRole_thenThrowKeycloakException() {
         UserRoleDto dto = new UserRoleDto();
         dto.setName(TEST_USER_ROLE);
-        dto.setPilotCode(TEST_PILOT_CODE);
-        RoleRepresentation existing = generateMockRoleRepresentation(TEST_USER_ROLE, TEST_PILOT_ROLE, TEST_PILOT_CODE);
+        dto.setGlobalName(TEST_USER_ROLE);
+        RoleRepresentation existing = generateMockRoleRepresentation(TEST_USER_ROLE, TEST_USER_ROLE);
 
         ReflectionTestUtils.setField(adminService, "clientId", "client-UUID");
         KeycloakAdminService spyService = Mockito.spy(adminService);
@@ -860,7 +809,7 @@ public class KeycloakAdminServiceTests {
     @DisplayName("Retrieve All Client Role Representations : Success")
     @Test
     void whenRetrieveAllClientRoles_thenReturnListOfRepresentations() {
-        RoleRepresentation repr = generateMockRoleRepresentation(TEST_USER_ROLE, TEST_PILOT_ROLE, TEST_PILOT_CODE);
+        RoleRepresentation repr = generateMockRoleRepresentation(TEST_USER_ROLE, TEST_USER_ROLE);
 
         ReflectionTestUtils.setField(adminService, "clientId", "client-UUID");
         when(keycloak.realm(anyString())).thenReturn(realmResource);
@@ -891,7 +840,7 @@ public class KeycloakAdminServiceTests {
     @DisplayName("Retrieve Client Role Representation By Name : Success")
     @Test
     void whenRetrieveClientRoleByName_thenReturnRepresentation() {
-        RoleRepresentation repr = generateMockRoleRepresentation(TEST_USER_ROLE, TEST_PILOT_ROLE, TEST_PILOT_CODE);
+        RoleRepresentation repr = generateMockRoleRepresentation(TEST_USER_ROLE, TEST_USER_ROLE);
 
         ReflectionTestUtils.setField(adminService, "clientId", "client-UUID");
         when(keycloak.realm(anyString())).thenReturn(realmResource);
@@ -922,13 +871,12 @@ public class KeycloakAdminServiceTests {
     }
 
     // ==================== Helper Methods ====================
-    private RoleRepresentation generateMockRoleRepresentation(String name, String pilotRole, String pilotCode){
+    private RoleRepresentation generateMockRoleRepresentation(String name, String globalRole){
         RoleRepresentation roleRepresentation = new RoleRepresentation();
         roleRepresentation.setName(name);
         roleRepresentation.setDescription("TEST_DESCRIPTION");
         Map<String, List<String>> pilotDataMap = new HashMap<>();
-        pilotDataMap.put("pilot_role", List.of(pilotRole));
-        pilotDataMap.put("pilot_code", List.of(pilotCode));
+        pilotDataMap.put("global_name", List.of(globalRole));
         roleRepresentation.setAttributes(pilotDataMap);
         return roleRepresentation;
     }

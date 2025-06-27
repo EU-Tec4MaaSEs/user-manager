@@ -248,7 +248,10 @@ public class UserManagementService implements IUserManagementService {
     boolean hasValidKeycloakAttributes(UserDto user) {
         // Check valid user role but omit this check for Global Code of Super Admin
         if (user.getUserRole() != null && !user.getUserRole().equals(SUPER_ADMIN_ROLE)) {
-            boolean validRole = adminService.retrieveAllUserRoles()
+            boolean validRole = adminService.retrieveAllUserRoles(true)
+                    .stream()
+                    .map(UserRoleDto::getName)
+                    .toList()
                     .contains(user.getUserRole().trim().toUpperCase());
             if (!validRole) return false;
         }
@@ -347,16 +350,9 @@ public class UserManagementService implements IUserManagementService {
     @Override
     @Cacheable(value = "users",  key = "#userRole")
     public List<UserDto> retrieveAllUsersByUserRole(String jwtPilotRole, String jwtPilot, String userRole) {
-        // Retrieve User Role given the Role Name (if exists)
-        UserRoleDto existingUserRole = adminService.retrieveUserRoleByName(userRole);
-
         // Block non Super-Admin users to retrieve the list of users for 'SUPER_ADMIN' role
-        if (!jwtPilotRole.equalsIgnoreCase(SUPER_ADMIN_ROLE) && existingUserRole.getPilotRole().equalsIgnoreCase(SUPER_ADMIN_ROLE))
+        if (!jwtPilotRole.equalsIgnoreCase(SUPER_ADMIN_ROLE) && userRole.equalsIgnoreCase(SUPER_ADMIN_ROLE))
             throw new ForbiddenAccessException("Non 'SUPER-ADMIN' users can not retrieve uses of role 'SUPER-ADMIN'");
-
-        // Ensure that input user role belongs to the pilot of the user requesting this resource (Non Super-Admins)
-        if (!jwtPilotRole.equalsIgnoreCase(SUPER_ADMIN_ROLE) && !jwtPilot.equalsIgnoreCase(existingUserRole.getPilotCode()))
-            throw new ForbiddenAccessException("User of role 'ADMIN' or 'USER' can only retrieve users assigned to a specific User Role only within their organization");
 
         try {
             return keycloak.realm(realm)

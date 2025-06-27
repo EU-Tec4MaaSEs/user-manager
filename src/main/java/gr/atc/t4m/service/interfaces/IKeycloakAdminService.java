@@ -40,7 +40,7 @@ public interface IKeycloakAdminService {
 
     ClientRepresentation retrieveClientRepresentationByName(String client);
 
-    List<String> retrieveAllUserRoles();
+    List<UserRoleDto> retrieveAllUserRoles(boolean isSuperAdmin);
 
     List<String> retrieveAllUserRolesByPilot(String pilotCode);
 

@@ -20,8 +20,7 @@ import java.util.Optional;
 @Builder
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public class UserRoleDto {
-    private static final String PILOT_ROLE = "pilot_role";
-    private static final String PILOT_CODE = "pilot_code";
+    private static final String GLOBAL_NAME = "global_name";
 
     @JsonProperty("id")
     private String id;
@@ -29,11 +28,8 @@ public class UserRoleDto {
     @JsonProperty("name")
     private String name;
 
-    @JsonProperty("pilotCode")
-    private String pilotCode;
-
-    @JsonProperty("pilotRole")
-    private String pilotRole;
+    @JsonProperty("globalName")
+    private String globalName;
 
     @JsonProperty("description")
     private String description;
@@ -44,10 +40,8 @@ public class UserRoleDto {
     public static UserRoleDto fromUserRoleCreationDto(UserRoleCreationDto newUserRole){
         UserRoleDto userRoleDto = new UserRoleDto();
         userRoleDto.setName(newUserRole.name());
-        userRoleDto.setPilotCode(newUserRole.pilotCode());
-        userRoleDto.setPilotRole(newUserRole.pilotRole());
-        if (newUserRole.description() != null)
-            userRoleDto.setDescription(newUserRole.description());
+        userRoleDto.setGlobalName(newUserRole.globalName());
+        userRoleDto.setDescription(newUserRole.description());
         return userRoleDto;
     }
 
@@ -72,19 +66,12 @@ public class UserRoleDto {
             attributes = existingRoleRepresentation.getAttributes() != null ? existingRoleRepresentation.getAttributes() : new HashMap<>(); // Ensure that attributes is not empty or create a new HashMap
         }
 
-        // Add pilot role attribute if included in UserRoleDTO
-        Optional.ofNullable(userRole.getPilotRole())
+        // Add global name to attribute if included in UserRoleDTO
+        Optional.ofNullable(userRole.getGlobalName())
                 .map(Object::toString)
                 .map(String::trim)
                 .map(String::toUpperCase)
-                .ifPresent(pilotRole -> attributes.put(PILOT_ROLE, List.of(pilotRole)));
-
-        // Add pilot code attribute if included in UserRoleDTO
-        Optional.ofNullable(userRole.getPilotCode())
-                .map(Object::toString)
-                .map(String::trim)
-                .map(String::toUpperCase)
-                .ifPresent(pilotCode -> attributes.put(PILOT_CODE, List.of(pilotCode)));
+                .ifPresent(pilotRole -> attributes.put(GLOBAL_NAME, List.of(pilotRole)));
 
         // Update the attributes
         roleRepresentation.setAttributes(attributes);
@@ -105,8 +92,7 @@ public class UserRoleDto {
         return UserRoleDto.builder()
                 .id(roleRepresentation.getId())
                 .name(roleRepresentation.getName() != null ? roleRepresentation.getName() : null)
-                .pilotCode(roleRepresentation.getAttributes() != null && roleRepresentation.getAttributes().containsKey(PILOT_CODE) && !roleRepresentation.getAttributes().get(PILOT_CODE).isEmpty() ? roleRepresentation.getAttributes().get(PILOT_CODE).getFirst(): null)
-                .pilotRole(roleRepresentation.getAttributes() != null && roleRepresentation.getAttributes().containsKey(PILOT_ROLE) && !roleRepresentation.getAttributes().get(PILOT_ROLE).isEmpty() ? roleRepresentation.getAttributes().get(PILOT_ROLE).getFirst(): null)
+                .globalName(roleRepresentation.getAttributes() != null && roleRepresentation.getAttributes().containsKey(GLOBAL_NAME) && !roleRepresentation.getAttributes().get(GLOBAL_NAME).isEmpty() ? roleRepresentation.getAttributes().get(GLOBAL_NAME).getFirst(): null)
                 .description(roleRepresentation.getDescription() != null ? roleRepresentation.getDescription() : null)
                 .build();
     }

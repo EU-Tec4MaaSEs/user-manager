@@ -31,6 +31,7 @@ public class KeycloakAdminService implements IKeycloakAdminService {
     private final String client;
     private final List<String> excludedSuperAdminRoles;
     private final List<String> excludedDefaultRoles;
+    private static final String SUPER_ADMIN_ROLE = "SUPER_ADMIN";
     private static final String PILOT_ROLE = "pilot_role";
     private static final String PILOT_CODE = "pilot_code";
 
@@ -361,18 +362,23 @@ public class KeycloakAdminService implements IKeycloakAdminService {
     }
 
     /**
-     * Retrieve all User Roles (For Super Admins)
+     * Retrieve all User Roles (For Super Admins / Admins)
      *
-     * @return List<String>
+     * @return List<UserRoleDto>
      */
     @Override
-    @Cacheable("userRoles")
-    public List<String> retrieveAllUserRoles() {
+    @Cacheable(value = "userRoles", key = "#isSuperAdmin")
+    public List<UserRoleDto> retrieveAllUserRoles(boolean isSuperAdmin) {
         List<RoleRepresentation> clientRoles = retrieveAllClientRoleRepresentations();
 
-        return clientRoles.stream()
-                .map(RoleRepresentation::getName)
-                .toList();
+        List<UserRoleDto> userRoleList = new ArrayList<>(clientRoles.stream()
+                .map(UserRoleDto::toUserRoleDTO)
+                .toList());
+
+        if (!isSuperAdmin)
+            userRoleList.removeIf(userRole -> SUPER_ADMIN_ROLE.equalsIgnoreCase(userRole.getName()));
+
+        return userRoleList;
     }
 
     /**
