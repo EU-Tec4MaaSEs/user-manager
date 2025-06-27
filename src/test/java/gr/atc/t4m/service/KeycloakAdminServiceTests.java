@@ -676,68 +676,6 @@ public class KeycloakAdminServiceTests {
         });
     }
 
-    // ==================== Retrieve all Users by User Role Tests ====================
-    @DisplayName("Retrieve All Users by User Role : Success")
-    @Test
-    void givenUserRoleName_whenRetrieveAllUsersByUserRole_thenReturnUserList() {
-        UserRepresentation userRep = new UserRepresentation();
-        userRep.setUsername("testuser");
-        userRep.setFirstName("Test");
-        userRep.setLastName("User");
-        userRep.setAttributes(Map.of("pilot_role", List.of(TEST_PILOT_ROLE), "pilot_code", List.of(TEST_PILOT_CODE), "user_role", List.of(TEST_USER_ROLE)));
-        userRep.setEmail("test@test.com");
-        userRep.setEnabled(true);
-        userRep.setId("test-id");
-
-        ReflectionTestUtils.setField(adminService, "clientId", "client-UUID");
-        when(keycloak.realm(anyString())).thenReturn(realmResource);
-        when(realmResource.clients()).thenReturn(clientsResource);
-        when(clientsResource.get(anyString())).thenReturn(clientResource);
-        when(clientResource.roles()).thenReturn(rolesResource);
-        when(rolesResource.get(anyString())).thenReturn(roleResource);
-        when(roleResource.getUserMembers()).thenReturn(List.of(userRep));
-
-        List<UserDto> users = adminService.retrieveAllUsersByUserRole(TEST_USER_ROLE);
-        assertEquals(1, users.size());
-        assertEquals("testuser", users.getFirst().getUsername());
-        assertEquals("Test", users.getFirst().getFirstName());
-        assertEquals("User", users.getFirst().getLastName());
-        assertEquals("test@test.com", users.getFirst().getEmail());
-        assertEquals(TEST_PILOT_ROLE, users.getFirst().getPilotRole());
-        assertEquals(TEST_PILOT_CODE, users.getFirst().getPilotCode());
-        assertEquals(TEST_USER_ROLE, users.getFirst().getUserRole());
-        assertEquals("test-id", users.getFirst().getUserId());
-    }
-
-    @DisplayName("Retrieve All Users by User Role : Not Found")
-    @Test
-    void givenUserRoleName_whenRetrieveUsersByUserRole_thenThrowResourceNotPresentException() {
-        ReflectionTestUtils.setField(adminService, "clientId", "client-UUID");
-        when(keycloak.realm(anyString())).thenReturn(realmResource);
-        when(realmResource.clients()).thenReturn(clientsResource);
-        when(clientsResource.get(anyString())).thenReturn(clientResource);
-        when(clientResource.roles()).thenReturn(rolesResource);
-        when(rolesResource.get(anyString())).thenThrow(new NotFoundException("Not Found"));
-
-        assertThrows(ResourceNotPresentException.class, () -> {
-            adminService.retrieveAllUsersByUserRole(TEST_USER_ROLE);
-        });
-    }
-
-    @DisplayName("Retrieve All Users by User Role : Keycloak Failure")
-    @Test
-    void givenUserRoleName_whenRetrieveUsersByUserRole_thenThrowKeycloakException() {
-        ReflectionTestUtils.setField(adminService, "clientId", "client-UUID");
-        when(keycloak.realm(anyString())).thenReturn(realmResource);
-        when(realmResource.clients()).thenReturn(clientsResource);
-        when(clientsResource.get(anyString())).thenReturn(clientResource);
-        when(clientResource.roles()).thenReturn(rolesResource);
-        when(rolesResource.get(anyString())).thenThrow(new RuntimeException());
-
-        assertThrows(KeycloakException.class, () -> {
-            adminService.retrieveAllUsersByUserRole(TEST_USER_ROLE);
-        });
-    }
     // ==================== Create User Role Tests ====================
     @DisplayName("Create User Role : Success")
     @Test

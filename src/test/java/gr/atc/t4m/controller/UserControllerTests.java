@@ -6,6 +6,7 @@ import gr.atc.t4m.dto.operations.PasswordsDto;
 import gr.atc.t4m.dto.operations.UserCreationDto;
 import gr.atc.t4m.service.interfaces.IEmailService;
 import gr.atc.t4m.service.interfaces.IUserManagementService;
+import org.hamcrest.Matchers;
 import org.junit.jupiter.api.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
@@ -37,8 +38,10 @@ import gr.atc.t4m.dto.operations.AuthenticationResponseDto;
 import gr.atc.t4m.dto.operations.CredentialsDto;
 import static gr.atc.t4m.exception.CustomExceptions.*;
 import gr.atc.t4m.service.interfaces.IUserAuthService;
+import org.springframework.test.web.servlet.request.MockMvcRequestBuilders;
 
 import java.time.Instant;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -876,6 +879,35 @@ class UserControllerTests {
 
         // Verify service was never called
         verify(userManagerService, never()).retrieveUsersByPilotCodeAndUserRole(anyString(), anyString());
+    }
+
+    @DisplayName("Successful retrieval of users for specific role")
+    @Test
+    void givenValidJwtAndUserRole_whenSuperAdmin_thenReturnUsers() throws Exception {
+        // Given
+        String userRole = "TEST";
+        List<UserDto> mockUsers = Arrays.asList(
+                UserDto.builder().username("user1").build(),
+                UserDto.builder().username("user2").build()
+        );
+
+        // Mock JWT authentication
+        JwtAuthenticationToken jwtAuthenticationToken = new JwtAuthenticationToken(superAdminJwt, List.of(new SimpleGrantedAuthority("ROLE_SUPER_ADMIN")));
+        SecurityContextHolder.getContext().setAuthentication(jwtAuthenticationToken);
+
+        // Mock service method
+        when(userManagerService.retrieveAllUsersByUserRole(anyString(),anyString(),anyString())).thenReturn(mockUsers);
+
+        // When
+        ResultActions response = mockMvc.perform(MockMvcRequestBuilders.get("/api/users/roles/{userRole}", userRole)
+                .contentType(MediaType.APPLICATION_JSON));
+
+        // Then
+        response.andExpect(status().isOk())
+                .andExpect(jsonPath("$.success", Matchers.is(true)))
+                .andExpect(jsonPath("$.message", Matchers.is("Users associated with the role retrieved successfully")))
+                .andExpect(jsonPath("$.data[0].username", Matchers.is("user1")))
+                .andExpect(jsonPath("$.data[1].username", Matchers.is("user2")));
     }
 
     private static Jwt createMockJwtToken(String userRole, String pilotRole, String pilotCode){

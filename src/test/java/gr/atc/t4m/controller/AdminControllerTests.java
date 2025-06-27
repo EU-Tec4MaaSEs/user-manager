@@ -1,7 +1,6 @@
 package gr.atc.t4m.controller;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import gr.atc.t4m.dto.UserDto;
 import gr.atc.t4m.dto.UserRoleDto;
 import gr.atc.t4m.dto.operations.PilotCreationDto;
 import gr.atc.t4m.dto.operations.UserRoleCreationDto;
@@ -459,35 +458,6 @@ public class AdminControllerTests {
                 .andExpect(jsonPath("$.message", is("User roles retrieved successfully")))
                 .andExpect(jsonPath("$.data[0]", is("ROLE1")))
                 .andExpect(jsonPath("$.data[1]", is("ROLE2")));
-    }
-
-    @DisplayName("Successful retrieval of users for specific role")
-    @Test
-    void givenValidJwtAndUserRole_whenSuperAdmin_thenReturnUsers() throws Exception {
-        // Given
-        String userRole = "OPERATOR";
-        List<UserDto> mockUsers = Arrays.asList(
-                UserDto.builder().username("user1").build(),
-                UserDto.builder().username("user2").build()
-        );
-
-        // Mock JWT authentication
-        JwtAuthenticationToken jwtAuthenticationToken = new JwtAuthenticationToken(superAdminJwt, List.of(new SimpleGrantedAuthority("ROLE_SUPER_ADMIN")));
-        SecurityContextHolder.getContext().setAuthentication(jwtAuthenticationToken);
-
-        // Mock service method
-        when(adminService.retrieveAllUsersByUserRole(anyString())).thenReturn(mockUsers);
-
-        // When
-        ResultActions response = mockMvc.perform(MockMvcRequestBuilders.get("/api/admin/roles/{userRole}/users", userRole)
-                .contentType(MediaType.APPLICATION_JSON));
-
-        // Then
-        response.andExpect(status().isOk())
-                .andExpect(jsonPath("$.success", is(true)))
-                .andExpect(jsonPath("$.message", is("Users associated with the role retrieved successfully")))
-                .andExpect(jsonPath("$.data[0].username", is("user1")))
-                .andExpect(jsonPath("$.data[1].username", is("user2")));
     }
 
     @DisplayName("Create a new pilot / organization : Success")

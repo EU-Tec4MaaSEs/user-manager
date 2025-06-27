@@ -1,6 +1,7 @@
 package gr.atc.t4m.service.interfaces;
 
 import gr.atc.t4m.dto.UserDto;
+import gr.atc.t4m.dto.UserRoleDto;
 import gr.atc.t4m.dto.operations.PasswordsDto;
 import gr.atc.t4m.dto.operations.UserCreationDto;
 import org.keycloak.admin.client.resource.UserResource;
@@ -29,6 +30,8 @@ public interface IUserManagementService {
     List<UserDto> retrieveUsersByPilotCode(String pilotCode);
 
     List<UserDto> retrieveUsersByPilotCodeAndUserRole(String pilotCode, String userRole);
+
+    List<UserDto> retrieveAllUsersByUserRole(String jwtPilotRole, String jwtPilot, String userRole);
 
     UserDto retrieveUserById(String userId);
 

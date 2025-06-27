@@ -61,4 +61,8 @@ public class CustomExceptions {
             super(message);
         }
     }
+
+    public static class ForbiddenAccessException extends RuntimeException{
+        public ForbiddenAccessException(String message) { super(message); }
+    }
 }
