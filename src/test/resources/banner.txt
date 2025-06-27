@@ -8,7 +8,7 @@
  | $$  | $$   | $$   | $$$$$$$$
  |__/  |__/   |__/   |_______/
 
- :: ATC User and Role Management Application : (${build.version})
+ :: ATC User and Role Management Application : (Test Version)
  :: Developed By : a.aznavouridis@atc.gr
  :: Project: EU-Tec4MaaSEs
  :: Spring Boot Version : (v${spring-boot.version})

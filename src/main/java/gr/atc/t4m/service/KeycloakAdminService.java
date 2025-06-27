@@ -1,7 +1,6 @@
 package gr.atc.t4m.service;
 
 import gr.atc.t4m.dto.PilotDto;
-import gr.atc.t4m.dto.UserDto;
 import gr.atc.t4m.dto.UserRoleDto;
 import gr.atc.t4m.dto.operations.PilotCreationDto;
 
@@ -10,7 +9,6 @@ import static gr.atc.t4m.exception.CustomExceptions.*;
 import gr.atc.t4m.dto.operations.UserRoleCreationDto;
 import gr.atc.t4m.config.properties.KeycloakProperties;
 import gr.atc.t4m.service.interfaces.IKeycloakAdminService;
-import jakarta.ws.rs.NotFoundException;
 import lombok.extern.slf4j.Slf4j;
 import org.keycloak.admin.client.Keycloak;
 import org.keycloak.representations.idm.*;
@@ -33,6 +31,7 @@ public class KeycloakAdminService implements IKeycloakAdminService {
     private final String client;
     private final List<String> excludedSuperAdminRoles;
     private final List<String> excludedDefaultRoles;
+    private static final String SUPER_ADMIN_ROLE = "SUPER_ADMIN";
     private static final String PILOT_ROLE = "pilot_role";
     private static final String PILOT_CODE = "pilot_code";
 
@@ -363,18 +362,23 @@ public class KeycloakAdminService implements IKeycloakAdminService {
     }
 
     /**
-     * Retrieve all User Roles (For Super Admins)
+     * Retrieve all User Roles (For Super Admins / Admins)
      *
-     * @return List<String>
+     * @return List<UserRoleDto>
      */
     @Override
-    @Cacheable("userRoles")
-    public List<String> retrieveAllUserRoles() {
+    @Cacheable(value = "userRoles", key = "#isSuperAdmin")
+    public List<UserRoleDto> retrieveAllUserRoles(boolean isSuperAdmin) {
         List<RoleRepresentation> clientRoles = retrieveAllClientRoleRepresentations();
 
-        return clientRoles.stream()
-                .map(RoleRepresentation::getName)
-                .toList();
+        List<UserRoleDto> userRoleList = new ArrayList<>(clientRoles.stream()
+                .map(UserRoleDto::toUserRoleDTO)
+                .toList());
+
+        if (!isSuperAdmin)
+            userRoleList.removeIf(userRole -> SUPER_ADMIN_ROLE.equalsIgnoreCase(userRole.getName()));
+
+        return userRoleList;
     }
 
     /**
@@ -433,7 +437,7 @@ public class KeycloakAdminService implements IKeycloakAdminService {
      * @return List<String>
      */
     @Override
-    @Cacheable(value = "userRoles", key = "#pilotRole + #pilotCode")
+    @Cacheable(value = "userRoles", key = "#pilotRole + '::' #pilotCode")
     public List<String> retrieveAllUserRolesByTypeAndPilot(String pilotRole, String pilotCode) {
         List<RoleRepresentation> clientRoles = retrieveAllClientRoleRepresentations();
 
@@ -465,32 +469,6 @@ public class KeycloakAdminService implements IKeycloakAdminService {
             throw new ResourceNotPresentException("Role '" + userRole.toUpperCase() + "' not found");
 
         return UserRoleDto.toUserRoleDTO(existingRepresentation);
-    }
-
-    /**
-     * Retrieve all Users given a specified User Role (if exists)
-     *
-     * @param userRole : User Role
-     * @return List<String>
-     * @throws ResourceNotPresentException : Thrown if User Role not found
-     */
-    @Override
-    public List<UserDto> retrieveAllUsersByUserRole(String userRole) {
-        try {
-            return keycloak.realm(realm)
-                    .clients()
-                    .get(retrieveClientId())
-                    .roles()
-                    .get(userRole)
-                    .getUserMembers()
-                    .stream()
-                    .map(UserDto::fromUserRepresentation)
-                    .toList();
-        } catch (NotFoundException e) {
-            throw new ResourceNotPresentException("Role '" + userRole + "' not found");
-        } catch (Exception e) {
-            throw new KeycloakException("Error retrieving users by specified role", e);
-        }
     }
 
     /**

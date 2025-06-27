@@ -1,7 +1,6 @@
 package gr.atc.t4m.controller;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import gr.atc.t4m.dto.UserDto;
 import gr.atc.t4m.dto.UserRoleDto;
 import gr.atc.t4m.dto.operations.PilotCreationDto;
 import gr.atc.t4m.dto.operations.UserRoleCreationDto;
@@ -35,7 +34,6 @@ import static org.hamcrest.Matchers.is;
 import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.BDDMockito.given;
-import static org.mockito.Mockito.when;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.authentication;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -75,8 +73,10 @@ public class AdminControllerTests {
     @Test
     void givenValidJwtForSuperAdmins_whenGetAllUserRoles_thenReturnUserRoles() throws Exception {
         // Given
-        List<String> roles = List.of("TEST_ROLE");
-        given(adminService.retrieveAllUserRoles()).willReturn(roles);
+        UserRoleDto userRoleDto = new UserRoleDto("1", "TEST_ROLE", "Test Role", "Role description");
+        UserRoleDto superAdminRole = new UserRoleDto("2", "SUPER_ADMIN", "Super Admin", "Role description");
+        List<UserRoleDto> roles = List.of(userRoleDto, superAdminRole);
+        given(adminService.retrieveAllUserRoles(anyBoolean())).willReturn(roles);
 
         // Mock JWT authentication
         JwtAuthenticationToken jwtAuthenticationToken = new JwtAuthenticationToken(superAdminJwt, List.of(new SimpleGrantedAuthority("ROLE_SUPER_ADMIN")));
@@ -90,8 +90,7 @@ public class AdminControllerTests {
         response.andExpect(status().isOk())
                 .andExpect(jsonPath("$.success", is(true)))
                 .andExpect(jsonPath("$.message", is("User roles retrieved successfully")))
-                .andExpect(jsonPath("$.data", is(roles)))
-                .andExpect(jsonPath("$.data", Matchers.hasSize(1)));
+                .andExpect(jsonPath("$.data", Matchers.hasSize(2)));
     }
 
     @DisplayName("Get All User Roles (For Admins): Success")
@@ -99,8 +98,8 @@ public class AdminControllerTests {
     @Test
     void givenValidJwtForAdmins_whenGetAllUserRoles_thenReturnUserRoles() throws Exception {
         // Given
-        List<String> roles = List.of("TEST_ROLE");
-        given(adminService.retrieveAllUserRolesByPilot(anyString())).willReturn(roles);
+        UserRoleDto userRoleDto = new UserRoleDto("1", "TEST_ROLE", "Test Role", "Role description");
+        given(adminService.retrieveAllUserRoles(anyBoolean())).willReturn(List.of(userRoleDto));
 
         // Mock JWT authentication
         JwtAuthenticationToken jwtAuthenticationToken = new JwtAuthenticationToken(adminJwt, List.of(new SimpleGrantedAuthority("ROLE_ADMIN")));
@@ -114,7 +113,7 @@ public class AdminControllerTests {
         response.andExpect(status().isOk())
                 .andExpect(jsonPath("$.success", is(true)))
                 .andExpect(jsonPath("$.message", is("User roles retrieved successfully")))
-                .andExpect(jsonPath("$.data", is(roles)))
+                .andExpect(jsonPath("$.data[0].name", is("TEST_ROLE")))
                 .andExpect(jsonPath("$.data", Matchers.hasSize(1)));
     }
 
@@ -123,8 +122,9 @@ public class AdminControllerTests {
     @Test
     void givenValidJwtForUsers_whenGetAllUserRoles_thenReturnUnauthorized() throws Exception {
         // Given
-        List<String> roles = List.of("TEST_ROLE");
-        given(adminService.retrieveAllUserRoles()).willReturn(roles);
+        UserRoleDto userRoleDto = new UserRoleDto("1", "TEST_ROLE", "Test Role", "Role description");
+        List<UserRoleDto> roles = List.of(userRoleDto);
+        given(adminService.retrieveAllUserRoles(anyBoolean())).willReturn(roles);
 
         // When
         ResultActions response = mockMvc.perform(get("/api/admin/roles")
@@ -185,8 +185,8 @@ public class AdminControllerTests {
         // Given
         UserRoleDto role = UserRoleDto.builder()
                 .name("TestRole")
-                .pilotRole("ADMIN")
-                .pilotCode("TEST_PILOT")
+                .globalName("Test Role")
+                .description("Test description")
                 .build();
 
         // Mock JWT authentication
@@ -205,37 +205,11 @@ public class AdminControllerTests {
                 .andExpect(jsonPath("$.message", is("User role created successfully")));
     }
 
-    @DisplayName("Create new Role: Unauthorized Admin request")
-    @Test
-    void givenValidJwtAndNewRole_whenCreateNewUserRole_thenReturnUnauthorizedForAdminInDifferentPilots() throws Exception {
-        // Given
-        UserRoleDto role = UserRoleDto.builder()
-                .name("TestRole")
-                .pilotRole("ADMIN")
-                .pilotCode("ANOTHER_PILOT")
-                .build();
-
-        // Mock JWT authentication
-        JwtAuthenticationToken jwtAuthenticationToken = new JwtAuthenticationToken(adminJwt, List.of(new SimpleGrantedAuthority("ROLE_ADMIN")));
-        SecurityContextHolder.getContext().setAuthentication(jwtAuthenticationToken);
-
-        // When
-        ResultActions response = mockMvc.perform(MockMvcRequestBuilders.post("/api/admin/roles/create")
-                .contentType(MediaType.APPLICATION_JSON)
-                .with(csrf())
-                .content(objectMapper.writeValueAsString(role)));
-
-        // Then
-        response.andExpect(status().isForbidden())
-                .andExpect(jsonPath("$.success", is(false)))
-                .andExpect(jsonPath("$.message", is("You are unauthorized to request/modify this resource")));
-    }
-
     @DisplayName("Create new Role: Missing fields in request body")
     @Test
     void givenValidJwtAndNewRoleWithMissingFields_whenCreateNewUserRole_thenReturnBadRequest() throws Exception {
         // Given
-        UserRoleCreationDto role = new UserRoleCreationDto("TestRole", null, "ADMIN", null);
+        UserRoleCreationDto role = new UserRoleCreationDto("Test_Role", null, "Test description");
 
         // Mock JWT authentication
         JwtAuthenticationToken jwtAuthenticationToken = new JwtAuthenticationToken(adminJwt, List.of(new SimpleGrantedAuthority("ROLE_ADMIN")));
@@ -275,46 +249,15 @@ public class AdminControllerTests {
                 .andExpect(jsonPath("$.message", is("User role deleted successfully")));
     }
 
-    @DisplayName("Delete User Role: Admin Unauthorized for Different Pilot")
-    @Test
-    void givenValidJwt_whenDeleteUserRoleInDifferentPilot_thenReturnForbidden() throws Exception {
-        // Given
-        String roleName = "TestRole";
-
-        // Mock service to return role from different pilot
-        given(adminService.retrieveUserRoleByName(anyString()))
-                .willReturn(UserRoleDto.builder()
-                        .name("TestRole")
-                        .pilotRole("ADMIN")
-                        .pilotCode("INVALID_TEST_PILOT")
-                        .description("Test description")
-                        .build());
-
-        // Mock JWT authentication
-        JwtAuthenticationToken jwtAuthenticationToken = new JwtAuthenticationToken(adminJwt,
-                List.of(new SimpleGrantedAuthority("ROLE_ADMIN")));
-        SecurityContextHolder.getContext().setAuthentication(jwtAuthenticationToken);
-
-        // When
-        ResultActions response = mockMvc.perform(MockMvcRequestBuilders.delete("/api/admin/roles/{roleName}", roleName)
-                .with(csrf())
-                .contentType(MediaType.APPLICATION_JSON));
-
-        // Then
-        response.andExpect(status().isForbidden())
-                .andExpect(jsonPath("$.success", is(false)))
-                .andExpect(jsonPath("$.message", is("You are unauthorized to request/modify this resource")));
-    }
-
     @DisplayName("Retrieve User Role: Success")
     @Test
     void givenValidJwt_whenRetrieveUserRole_thenReturnUserRole() throws Exception {
         // Given
-        String roleName = "TestRole";
+        String roleName = "TEST_ROLE";
         UserRoleDto expectedRole = UserRoleDto.builder()
                 .name(roleName.toUpperCase())
-                .pilotRole("ADMIN")
-                .pilotCode("TEST")
+                .name("TEST_ROLE")
+                .globalName("Test Role")
                 .description("Test description")
                 .build();
 
@@ -334,7 +277,7 @@ public class AdminControllerTests {
         response.andExpect(status().isOk())
                 .andExpect(jsonPath("$.success", is(true)))
                 .andExpect(jsonPath("$.message", is("User role retrieved successfully")))
-                .andExpect(jsonPath("$.data.name", is(roleName.toUpperCase())));
+                .andExpect(jsonPath("$.data.name", is(roleName)));
     }
 
     @DisplayName("Update User Role: Success")
@@ -345,8 +288,8 @@ public class AdminControllerTests {
         String roleName = "TestRole";
         UserRoleDto roleToUpdate = UserRoleDto.builder()
                 .name(roleName.toUpperCase())
-                .pilotRole("ADMIN")
-                .pilotCode("TEST")
+                .name("TestRole")
+                .globalName("Test Role")
                 .description("Test description")
                 .build();
 
@@ -367,34 +310,6 @@ public class AdminControllerTests {
                 .andExpect(jsonPath("$.message", is("User role updated successfully")));
     }
 
-    @DisplayName("Update User Role: Admin Unauthorized for Different Pilot")
-    @WithMockUser(roles = "ADMIN")
-    @Test
-    void givenValidJwt_whenUpdateUserRoleInDifferentPilot_thenReturnForbidden() throws Exception {
-        // Given
-        String roleName = "TestRole";
-        UserRoleDto existingRole = UserRoleDto.builder()
-                .pilotCode("ANOTHER_PILOT")
-                .build();
-
-        when(adminService.retrieveUserRoleByName(roleName.trim().toUpperCase())).thenReturn(existingRole);
-
-        // Mock JWT authentication
-        JwtAuthenticationToken jwtAuthenticationToken = new JwtAuthenticationToken(adminJwt,
-                List.of(new SimpleGrantedAuthority("ROLE_ADMIN")));
-        SecurityContextHolder.getContext().setAuthentication(jwtAuthenticationToken);
-
-        // When
-        ResultActions response = mockMvc.perform(MockMvcRequestBuilders.put("/api/admin/roles/{roleName}", roleName)
-                .with(csrf())
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(objectMapper.writeValueAsString(existingRole)));
-
-        // Then
-        response.andExpect(status().isForbidden())
-                .andExpect(jsonPath("$.success", is(false)))
-                .andExpect(jsonPath("$.message", is("You are unauthorized to request/modify this resource")));
-    }
 
     @DisplayName("Get All System Roles: Success")
     @Test
@@ -420,7 +335,7 @@ public class AdminControllerTests {
         assertThat(response.andReturn().getResponse().getStatus()).isEqualTo(HttpStatus.OK.value());
     }
 
-    @DisplayName("Forbidden Access for User: 403 Error")
+    @DisplayName("Get All System Roles : Forbidden Access for User - 403 Error")
     @WithMockUser(roles = "USER")
     @Test
     void givenUserWithoutSuperAdminRole_whenGetAllUserRoles_thenReturnForbidden() throws Exception {
@@ -434,61 +349,6 @@ public class AdminControllerTests {
         assertThat(response.andReturn().getResponse().getStatus()).isEqualTo(HttpStatus.FORBIDDEN.value());
     }
 
-    @DisplayName("Retrieval of User Roles for a specific Pilot Role: Success")
-    @WithMockUser(roles = "SUPER_ADMIN")
-    @Test
-    void givenValidJwtAndPilotCode_whenSuperAdmin_thenReturnUserRoleNames() throws Exception {
-        // Given
-        String pilotRole = "ADMIN";
-        List<String> mockRoles = Arrays.asList("ROLE1", "ROLE2");
-
-        // Mock JWT authentication
-        JwtAuthenticationToken jwtAuthenticationToken = new JwtAuthenticationToken(superAdminJwt, List.of(new SimpleGrantedAuthority("ROLE_SUPER_ADMIN")));
-        SecurityContextHolder.getContext().setAuthentication(jwtAuthenticationToken);
-
-        // Mock service method
-        when(adminService.retrieveAllUserRolesByType(anyString())).thenReturn(mockRoles);
-
-        // When
-        ResultActions response = mockMvc.perform(get("/api/admin/roles/type/{pilotRole}", pilotRole)
-                .contentType(MediaType.APPLICATION_JSON));
-
-        // Then
-        response.andExpect(status().isOk())
-                .andExpect(jsonPath("$.success", is(true)))
-                .andExpect(jsonPath("$.message", is("User roles retrieved successfully")))
-                .andExpect(jsonPath("$.data[0]", is("ROLE1")))
-                .andExpect(jsonPath("$.data[1]", is("ROLE2")));
-    }
-
-    @DisplayName("Successful retrieval of users for specific role")
-    @Test
-    void givenValidJwtAndUserRole_whenSuperAdmin_thenReturnUsers() throws Exception {
-        // Given
-        String userRole = "OPERATOR";
-        List<UserDto> mockUsers = Arrays.asList(
-                UserDto.builder().username("user1").build(),
-                UserDto.builder().username("user2").build()
-        );
-
-        // Mock JWT authentication
-        JwtAuthenticationToken jwtAuthenticationToken = new JwtAuthenticationToken(superAdminJwt, List.of(new SimpleGrantedAuthority("ROLE_SUPER_ADMIN")));
-        SecurityContextHolder.getContext().setAuthentication(jwtAuthenticationToken);
-
-        // Mock service method
-        when(adminService.retrieveAllUsersByUserRole(anyString())).thenReturn(mockUsers);
-
-        // When
-        ResultActions response = mockMvc.perform(MockMvcRequestBuilders.get("/api/admin/roles/{userRole}/users", userRole)
-                .contentType(MediaType.APPLICATION_JSON));
-
-        // Then
-        response.andExpect(status().isOk())
-                .andExpect(jsonPath("$.success", is(true)))
-                .andExpect(jsonPath("$.message", is("Users associated with the role retrieved successfully")))
-                .andExpect(jsonPath("$.data[0].username", is("user1")))
-                .andExpect(jsonPath("$.data[1].username", is("user2")));
-    }
 
     @DisplayName("Create a new pilot / organization : Success")
     @Test
@@ -539,62 +399,6 @@ public class AdminControllerTests {
     }
 
 
-    @DisplayName("Assign a Role to Pilot : Success")
-    @Test
-    void givenPilotAndRole_whenAssignUserRoleToPilot_thenReturnSuccess() throws Exception {
-        // Given
-        String pilot = "TEST_PILOT";
-        String role = "TEST_ROLE";
-
-        UserRoleDto existingRole = UserRoleDto.builder()
-                .name(role)
-                .pilotCode("TEST_PILOT")
-                .pilotRole("ADMIN").build();
-
-        // Mock JWT authentication
-        JwtAuthenticationToken jwtAuthenticationToken = new JwtAuthenticationToken(superAdminJwt, List.of(new SimpleGrantedAuthority("ROLE_SUPER_ADMIN")));
-        SecurityContextHolder.getContext().setAuthentication(jwtAuthenticationToken);
-
-        // Mock service method
-        when(adminService.retrieveUserRoleByName(anyString())).thenReturn(existingRole);
-
-        // When
-        ResultActions response = mockMvc.perform(MockMvcRequestBuilders.put("/api/admin/pilots/{pilotCode}/assign/roles/{role}", pilot, role)
-                .with(csrf())
-                .contentType(MediaType.APPLICATION_JSON));
-
-        // Then
-        response.andExpect(status().isOk())
-                .andExpect(jsonPath("$.success", is(true)))
-                .andExpect(jsonPath("$.message", is("User role assigned successfully to pilot")));
-    }
-
-    @DisplayName("Assign a Role to Pilot : Failed - Admin assigned role outside organization")
-    @Test
-    void givenDifferentPilotAndRole_whenAssignUserRoleToPilot_thenReturnSuccess() throws Exception {
-        // Given
-        String pilot = "TEST_PILOT";
-        String role = "TEST_ROLE";
-
-        UserRoleDto existingRole = UserRoleDto.builder().name(role).pilotCode("TEST_ANOTHER_PILOT").pilotRole("ADMIN").build();
-
-        // Mock JWT authentication
-        JwtAuthenticationToken jwtAuthenticationToken = new JwtAuthenticationToken(adminJwt, List.of(new SimpleGrantedAuthority("ROLE_ADMIN")));
-        SecurityContextHolder.getContext().setAuthentication(jwtAuthenticationToken);
-
-        // Mock service method
-        when(adminService.retrieveUserRoleByName(anyString())).thenReturn(existingRole);
-
-        // When
-        ResultActions response = mockMvc.perform(MockMvcRequestBuilders.put("/api/admin/pilots/{pilotCode}/assign/roles/{role}", pilot, role)
-                .with(csrf())
-                .contentType(MediaType.APPLICATION_JSON));
-
-        // Then
-        response.andExpect(status().isForbidden())
-                .andExpect(jsonPath("$.success", is(false)))
-                .andExpect(jsonPath("$.message", is("You are unauthorized to request/modify this resource")));
-    }
 
     private static Jwt createMockJwtToken(String userRole, String pilotRole, String pilotCode){
         Map<String, Object> headers = new HashMap<>();

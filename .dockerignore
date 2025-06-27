@@ -1,6 +1,15 @@
-/target
-/.github
 .gitignore
+.gitattributes
 src/main/resources/application-local.properties
 HELP.md
 .env
+.vscode
+.idea
+keycloak
+target
+docker-compose.yml
+README.md
+LICENSE
+bitbucket-pipelines.yml
+.github
+src/test

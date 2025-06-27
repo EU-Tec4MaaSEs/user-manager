@@ -179,5 +179,11 @@ public class GlobalExceptionHandler {
         return new ResponseEntity<>(BaseAppResponse.error("Password validation failed", ex.getMessage()),
                 HttpStatus.CONFLICT);
     }
+
+    @ExceptionHandler(ForbiddenAccessException.class)
+    public ResponseEntity<BaseAppResponse<String>> handleForbiddenAccessException(@NotNull ForbiddenAccessException ex) {
+        return new ResponseEntity<>(BaseAppResponse.error("You are unauthorized to request/modify this resource", ex.getMessage()),
+                HttpStatus.FORBIDDEN);
+    }
 }
 

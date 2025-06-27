@@ -2,6 +2,7 @@ package gr.atc.t4m.service;
 
 import gr.atc.t4m.config.properties.KeycloakProperties;
 import gr.atc.t4m.dto.UserDto;
+import gr.atc.t4m.dto.UserRoleDto;
 import gr.atc.t4m.dto.operations.PasswordsDto;
 import gr.atc.t4m.dto.operations.UserCreationDto;
 import gr.atc.t4m.service.interfaces.IEmailService;
@@ -60,6 +61,18 @@ class UserManagementServiceTests {
 
     @Mock
     private UserResource userResource;
+
+    @Mock
+    private ClientsResource clientsResource;
+
+    @Mock
+    private ClientResource clientResource;
+
+    @Mock
+    private RoleResource roleResource;
+
+    @Mock
+    private RolesResource rolesResource;
 
     @Mock
     GroupRepresentation parentGroup;
@@ -764,6 +777,181 @@ class UserManagementServiceTests {
         assertEquals(1, result.size());
         assertEquals(TEST_USER_ID, result.getFirst().getUserId());
     }
+
+    // ==================== Retrieve all Users by User Role Tests ====================
+    @DisplayName("Retrieve All Users by User Role : Success - Super Admin")
+    @Test
+    void givenSuperAdminCredentials_whenRetrieveAllUsersByUserRole_thenReturnUserList() {
+        // Given
+        UserRepresentation userRep = new UserRepresentation();
+        userRep.setUsername("testuser");
+        userRep.setFirstName("Test");
+        userRep.setLastName("User");
+        userRep.setAttributes(Map.of(
+                "pilot_role", List.of(TEST_PILOT_ROLE),
+                "pilot_code", List.of(TEST_PILOT_CODE),
+                "user_role", List.of(TEST_USER_ROLE)
+        ));
+        userRep.setEmail("test@test.com");
+        userRep.setEnabled(true);
+        userRep.setId("test-id");
+
+        UserRoleDto mockUserRole = UserRoleDto.builder()
+                .name(TEST_USER_ROLE)
+                .globalName(TEST_USER_ROLE)
+                .description("Test description")
+                .build();
+
+        // Mock adminService.retrieveClientId()
+        when(adminService.retrieveClientId()).thenReturn("client-UUID");
+
+        // Mock Keycloak chain
+        when(keycloak.realm(anyString())).thenReturn(realmResource);
+        when(realmResource.clients()).thenReturn(clientsResource);
+        when(clientsResource.get("client-UUID")).thenReturn(clientResource);
+        when(clientResource.roles()).thenReturn(rolesResource);
+        when(rolesResource.get(TEST_USER_ROLE)).thenReturn(roleResource);
+        when(roleResource.getUserMembers()).thenReturn(List.of(userRep));
+
+        // When - Super Admin can access any role
+        List<UserDto> users = userManagementService.retrieveAllUsersByUserRole(
+                "SUPER_ADMIN",
+                TEST_PILOT_CODE,
+                TEST_USER_ROLE
+        );
+
+        // Then
+        assertEquals(1, users.size());
+        assertEquals("testuser", users.getFirst().getUsername());
+        assertEquals("Test", users.getFirst().getFirstName());
+        assertEquals("User", users.getFirst().getLastName());
+        assertEquals("test@test.com", users.getFirst().getEmail());
+        assertEquals(TEST_PILOT_ROLE, users.getFirst().getPilotRole());
+        assertEquals(TEST_PILOT_CODE, users.getFirst().getPilotCode());
+        assertEquals(TEST_USER_ROLE, users.getFirst().getUserRole());
+        assertEquals("test-id", users.getFirst().getUserId());
+    }
+
+    @DisplayName("Retrieve All Users by User Role : Success - Admin Same Pilot")
+    @Test
+    void givenAdminSamePilot_whenRetrieveAllUsersByUserRole_thenReturnUserList() {
+        // Given
+        UserRepresentation userRep = new UserRepresentation();
+        userRep.setUsername("testuser");
+        userRep.setFirstName("Test");
+        userRep.setLastName("User");
+        userRep.setAttributes(Map.of(
+                "pilot_role", List.of("ADMIN"),
+                "pilot_code", List.of(TEST_PILOT_CODE),
+                "user_role", List.of(TEST_USER_ROLE)
+        ));
+        userRep.setEmail("test@test.com");
+        userRep.setEnabled(true);
+        userRep.setId("test-id");
+
+        UserRoleDto mockUserRole = UserRoleDto.builder()
+                .name(TEST_USER_ROLE)
+                .globalName(TEST_USER_ROLE)
+                .description("Test description")
+                .build();
+
+        when(adminService.retrieveClientId()).thenReturn("client-UUID");
+
+        when(keycloak.realm(anyString())).thenReturn(realmResource);
+        when(realmResource.clients()).thenReturn(clientsResource);
+        when(clientsResource.get("client-UUID")).thenReturn(clientResource);
+        when(clientResource.roles()).thenReturn(rolesResource);
+        when(rolesResource.get(TEST_USER_ROLE)).thenReturn(roleResource);
+        when(roleResource.getUserMembers()).thenReturn(List.of(userRep));
+
+        // When - Admin accessing role within their pilot
+        List<UserDto> users = userManagementService.retrieveAllUsersByUserRole(
+                "ADMIN",
+                TEST_PILOT_CODE,
+                TEST_USER_ROLE
+        );
+
+        // Then
+        assertEquals(1, users.size());
+        assertEquals("testuser", users.getFirst().getUsername());
+    }
+
+    @DisplayName("Retrieve All Users by User Role : Forbidden - Non Super Admin accessing Super Admin role")
+    @Test
+    void givenNonSuperAdmin_whenAccessingSuperAdminRole_thenThrowForbiddenAccessException() {
+        // Given
+        UserRoleDto mockUserRole = UserRoleDto.builder()
+                .name("SUPER_ADMIN_ROLE")
+                .globalName(TEST_USER_ROLE)
+                .description("Test description")
+                .build();
+
+        // When & Then - Admin trying to access Super Admin role
+        assertThrows(ForbiddenAccessException.class, () -> {
+            userManagementService.retrieveAllUsersByUserRole(
+                    "ADMIN",
+                    TEST_PILOT_CODE,
+                    "SUPER_ADMIN"
+            );
+        });
+    }
+
+    @DisplayName("Retrieve All Users by User Role : Not Found")
+    @Test
+    void givenInvalidUserRole_whenRetrieveUsersByUserRole_thenThrowResourceNotPresentException() {
+        // Given
+        UserRoleDto mockUserRole = UserRoleDto.builder()
+                .name(TEST_USER_ROLE)
+                .globalName(TEST_USER_ROLE)
+                .description("Test description")
+                .build();
+
+        when(adminService.retrieveClientId()).thenReturn("client-UUID");
+
+        when(keycloak.realm(anyString())).thenReturn(realmResource);
+        when(realmResource.clients()).thenReturn(clientsResource);
+        when(clientsResource.get("client-UUID")).thenReturn(clientResource);
+        when(clientResource.roles()).thenReturn(rolesResource);
+        when(rolesResource.get(TEST_USER_ROLE)).thenThrow(new NotFoundException("Not Found"));
+
+        // When & Then
+        assertThrows(ResourceNotPresentException.class, () -> {
+            userManagementService.retrieveAllUsersByUserRole(
+                    "SUPER_ADMIN",
+                    TEST_PILOT_CODE,
+                    TEST_USER_ROLE
+            );
+        });
+    }
+
+    @DisplayName("Retrieve All Users by User Role : Keycloak Failure")
+    @Test
+    void givenKeycloakError_whenRetrieveUsersByUserRole_thenThrowKeycloakException() {
+        // Given
+        UserRoleDto mockUserRole = UserRoleDto.builder()
+                .name(TEST_USER_ROLE)
+                .globalName(TEST_USER_ROLE)
+                .description("Test description")
+                .build();
+
+        when(adminService.retrieveClientId()).thenReturn("client-UUID");
+
+        when(keycloak.realm(anyString())).thenReturn(realmResource);
+        when(realmResource.clients()).thenReturn(clientsResource);
+        when(clientsResource.get("client-UUID")).thenReturn(clientResource);
+        when(clientResource.roles()).thenReturn(rolesResource);
+        when(rolesResource.get(TEST_USER_ROLE)).thenThrow(new RuntimeException("Keycloak error"));
+
+        // When & Then
+        assertThrows(KeycloakException.class, () -> {
+            userManagementService.retrieveAllUsersByUserRole(
+                    "SUPER_ADMIN",
+                    TEST_PILOT_CODE,
+                    TEST_USER_ROLE
+            );
+        });
+    }
+
 
     // ==================== Retrieve Users by Pilot Code Tests ====================
     @DisplayName("Retrieve Users by Pilot Code : Success")

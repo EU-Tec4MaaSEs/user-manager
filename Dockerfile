@@ -1,32 +1,39 @@
-# First stage: GraalVM Native Image Builder
-FROM container-registry.oracle.com/graalvm/native-image:21 AS nativebuild
+# Build stage
+FROM eclipse-temurin:21-jdk-alpine AS build
 
-WORKDIR /app
-COPY .mvn/ .mvn/
-COPY mvnw pom.xml ./
-
-RUN chmod +x mvnw
-
-# Pre-download dependencies
-RUN ./mvnw dependency:go-offline
+WORKDIR /usr/src/app
+COPY pom.xml .
 COPY src ./src
+# Cache dependencies
+RUN apk add --no-cache maven && \
+    mvn dependency:go-offline -B && \
+    mvn -B -Dmaven.test.skip package && \
+    rm -rf /root/.m2
 
-# Build a dynamically linked native image with optimization for size
-RUN ./mvnw clean package -Pnative -DskipTests -B \
-    -Dspring.aot.enabled=true \
-    -Dspring.native.remove-unused-autoconfig=true \
-    -Dspring.jpa.defer-datasource-initialization=true \
-    -DnativeImageArgs="--no-server -J-Xmx6G -J-Xms2G --enable-preview -H:+ReportExceptionStackTraces" \
-    && strip target/t4m-user-manager
+# Runtime stage
+FROM eclipse-temurin:21-jre-alpine
 
-# Second stage: Runtime Image
-FROM gcr.io/distroless/java-base-debian12
+LABEL org.opencontainers.image.title="T4M User Manager" \
+      org.opencontainers.image.description="User and Roles management service" \
+      org.opencontainers.image.version="v0.5" \
+      org.opencontainers.image.vendor="Athens Technology Center (ATC)"
 
-# Select default Non-root User
-USER 65532:65532
-
-COPY --from=nativebuild --chown=65532:65532 /app/target/t4m-user-manager /app/
 WORKDIR /app
 
-ENTRYPOINT ["/app/t4m-user-manager"]
-CMD ["--server.address=0.0.0.0"]
+# Create non-root user
+RUN addgroup -S appgroup && adduser -S appuser -G appgroup
+USER appuser
+
+COPY --from=build /usr/src/app/target/*.jar app.jar
+
+# JVM tuning
+ENTRYPOINT ["java", \
+            "-XX:+UseContainerSupport", \
+            "-XX:MaxRAMPercentage=75.0", \
+            "-XX:+UseG1GC", \
+            "-XX:MaxGCPPauseMillis=100", \
+            "-XX:+ParallelRefProcEnabled", \
+            "-XX:+HeapDumpOnOutOfMemoryError", \
+            "-XX:+DisableExplicitGC", \
+            "-Djava.security.egd=file:/dev/./urandom", \
+            "-jar", "/app/app.jar"]

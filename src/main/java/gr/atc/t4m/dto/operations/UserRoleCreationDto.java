@@ -15,26 +15,18 @@ public record UserRoleCreationDto(
                 requiredMode = Schema.RequiredMode.REQUIRED)
         String name,
 
-        @NotEmpty(message = "Pilot code cannot be empty")
-        @Schema(description = "Pilot Code of the user. Pilot code must exist",
-                name = "pilotCode",
+        @NotEmpty(message = "Global name cannot be empty")
+        @Schema(description = "Global name of the role, how it is presented in the UI",
+                name = "globalName",
                 type = "String",
-                example = "TEST_PILOT",
+                example = "Test Role",
                 requiredMode = Schema.RequiredMode.REQUIRED)
-        String pilotCode,
+        String globalName,
 
-        @ValidPilotRole
-        @NotEmpty(message = "Pilot role cannot be empty")
-        @Schema(description = "Pilot Role of the user. Pilot role must exist",
-                name = "pilotRole",
-                type = "String",
-                example = "'ADMIN' or 'USER' or 'SUPER_ADMIN'",
-                requiredMode = Schema.RequiredMode.REQUIRED)
-        String pilotRole,
-
-        @Schema(description = "Brief description for the User role. If not provided it will be auto-generated",
+        @NotEmpty(message = "Description cannot be empty")
+        @Schema(description = "Brief description for the User role. Should define the purpose of the role",
                 name = "description",
                 type = "String",
-                requiredMode = Schema.RequiredMode.NOT_REQUIRED)
+                requiredMode = Schema.RequiredMode.REQUIRED)
         String description
 ) {}
