@@ -31,7 +31,7 @@ ENTRYPOINT ["java", \
             "-XX:+UseContainerSupport", \
             "-XX:MaxRAMPercentage=75.0", \
             "-XX:+UseG1GC", \
-            "-XX:MaxGCPPauseMillis=100", \
+            "-XX:MaxGCPauseMillis=100", \
             "-XX:+ParallelRefProcEnabled", \
             "-XX:+HeapDumpOnOutOfMemoryError", \
             "-XX:+DisableExplicitGC", \
