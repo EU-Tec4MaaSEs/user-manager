@@ -1,18 +1,20 @@
 package gr.atc.t4m.dto;
 
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+
+import org.keycloak.representations.idm.RoleRepresentation;
+
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
+
 import gr.atc.t4m.dto.operations.UserRoleCreationDto;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-import org.keycloak.representations.idm.RoleRepresentation;
-
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
 
 @Data
 @AllArgsConstructor
@@ -63,14 +65,13 @@ public class UserRoleDto {
             roleRepresentation.setClientRole(true);
             attributes = new HashMap<>();
         } else {
-            attributes = existingRoleRepresentation.getAttributes() != null ? existingRoleRepresentation.getAttributes() : new HashMap<>(); // Ensure that attributes is not empty or create a new HashMap
+            attributes = existingRoleRepresentation.getAttributes() != null ? existingRoleRepresentation.getAttributes() : new HashMap<>();
         }
 
         // Add global name to attribute if included in UserRoleDTO
         Optional.ofNullable(userRole.getGlobalName())
                 .map(Object::toString)
                 .map(String::trim)
-                .map(String::toUpperCase)
                 .ifPresent(pilotRole -> attributes.put(GLOBAL_NAME, List.of(pilotRole)));
 
         // Update the attributes
