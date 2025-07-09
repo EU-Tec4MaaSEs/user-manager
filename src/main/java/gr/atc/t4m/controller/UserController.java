@@ -499,6 +499,7 @@ public class UserController {
         UserDto currentUser = UserDto.builder()
                 .userId(JwtUtils.extractUserId(jwt))
                 .email(JwtUtils.extractUserEmail(jwt))
+                .username(JwtUtils.extractUsername(jwt))
                 .firstName(JwtUtils.extractUserFirstName(jwt))
                 .lastName(JwtUtils.extractUserLastName(jwt))
                 .pilotRole(JwtUtils.extractPilotRole(jwt))
@@ -508,6 +509,4 @@ public class UserController {
 
         return new ResponseEntity<>(BaseAppResponse.success(currentUser, "User information from given JWT Token retrieved successfully"), HttpStatus.OK);
     }
-
-
 }

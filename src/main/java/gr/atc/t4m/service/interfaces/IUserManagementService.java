@@ -1,11 +1,9 @@
 package gr.atc.t4m.service.interfaces;
 
 import gr.atc.t4m.dto.UserDto;
-import gr.atc.t4m.dto.UserRoleDto;
 import gr.atc.t4m.dto.operations.PasswordsDto;
 import gr.atc.t4m.dto.operations.UserCreationDto;
 import org.keycloak.admin.client.resource.UserResource;
-import org.springframework.scheduling.annotation.Async;
 
 import java.util.List;
 

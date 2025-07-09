@@ -16,6 +16,7 @@ public class JwtUtils {
     private static final String CLAIM_ROLES = "roles";
     private static final String CLAIM_RESOURCE_ACCESS = "resource_access";
     private static final String ID_FIELD = "sub";
+    private static final String USERNAME_FIELD = "preferred_username";
     private static final String FIRST_NAME_FIELD = "given_name";
     private static final String LAST_NAME_FIELD = "family_name";
     private static final String EMAIL_FIELD = "email";
@@ -136,6 +137,19 @@ public class JwtUtils {
             return null;
         }
         return jwt.getClaimAsString(EMAIL_FIELD);
+    }
+
+    /**
+     * Util to extract the Username from Token
+     *
+     * @param jwt : Token to extract username
+     * @return Username
+     */
+    public static String extractUsername(Jwt jwt){
+        if (jwt == null || jwt.getClaimAsString(USERNAME_FIELD) == null) {
+            return null;
+        }
+        return jwt.getClaimAsString(USERNAME_FIELD);
     }
 
 

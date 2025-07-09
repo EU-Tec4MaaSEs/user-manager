@@ -15,11 +15,11 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.keycloak.admin.client.Keycloak;
+import org.keycloak.admin.client.KeycloakBuilder;
 import org.keycloak.admin.client.resource.*;
-import org.keycloak.representations.idm.CredentialRepresentation;
-import org.keycloak.representations.idm.GroupRepresentation;
-import org.keycloak.representations.idm.RoleRepresentation;
-import org.keycloak.representations.idm.UserRepresentation;
+import org.keycloak.admin.client.token.TokenManager;
+import org.keycloak.representations.AccessTokenResponse;
+import org.keycloak.representations.idm.*;
 import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
@@ -75,10 +75,13 @@ class UserManagementServiceTests {
     private RolesResource rolesResource;
 
     @Mock
-    GroupRepresentation parentGroup;
+    private GroupRepresentation parentGroup;
 
     @Mock
-    GroupRepresentation subGroup;
+    private GroupRepresentation subGroup;
+
+    @Mock
+    private TokenManager mockTokenManager;
 
     @Mock
     private Response response;
@@ -94,6 +97,9 @@ class UserManagementServiceTests {
     private static final String TEST_USER_ROLE = "TEST_ROLE";
     private static final String ACTIVATION_TOKEN = "activation_token";
     private static final String ACTIVATION_EXPIRY = "activation_expiry";
+    private static final String SERVER_URL = "http://keycloak.com";
+    private static final String CLIENT_ID = "client";
+    private static final String CLIENT_SECRET = "secret";
 
     @BeforeEach
     void setUp() {
@@ -103,6 +109,9 @@ class UserManagementServiceTests {
         lenient().when(usersResource.get(TEST_USER_ID)).thenReturn(userResource);
 
         ReflectionTestUtils.setField(userManagementService, "realm", TEST_REALM);
+        ReflectionTestUtils.setField(userManagementService, "serverUrl", SERVER_URL);
+        ReflectionTestUtils.setField(userManagementService, "clientId", CLIENT_ID);
+        ReflectionTestUtils.setField(userManagementService, "clientSecret", CLIENT_SECRET);
     }
 
     // ==================== Logout User Tests ====================
@@ -319,7 +328,7 @@ class UserManagementServiceTests {
     }
 
     // ==================== Activate User Tests ====================
-    @DisplayName("Activate User : Succes")
+    @DisplayName("Activate User : Success")
     @Test
     void givenValidUserAndToken_whenActivateUser_thenUserActivatedSuccessfully() {
         // Given
@@ -1060,56 +1069,129 @@ class UserManagementServiceTests {
     @Test
     void givenValidOldPassword_whenChangePassword_thenSuccess() {
         // Given
-        CredentialRepresentation credential = new CredentialRepresentation();
-        credential.setValue("oldPass123@");
-
-        UserRepresentation user = new UserRepresentation();
-        user.setId(TEST_USER_ID);
-        user.setCredentials(List.of(credential));
-
         PasswordsDto passwords = new PasswordsDto("oldPass123@", "newPass123@");
 
-        UserManagementService spyService = spy(userManagementService);
-        doReturn(user).when(spyService).retrieveUserRepresentationById(TEST_USER_ID);
-        doNothing().when(userResource).update(any());
+        UserRepresentation userRepresentation = new UserRepresentation();
+        userRepresentation.setEmail(TEST_EMAIL);
 
-        when(usersResource.get(TEST_USER_ID)).thenReturn(userResource);
-        ReflectionTestUtils.setField(spyService, "realm", TEST_REALM);
+        UserManagementService spyService = spy(userManagementService);
+        doReturn(userResource).when(spyService).retrieveUsersResourceById(TEST_USER_ID);
+        when(userResource.toRepresentation()).thenReturn(userRepresentation);
+        doReturn(true).when(spyService).validateCurrentPassword(TEST_EMAIL, passwords.oldPassword());
+        doNothing().when(userResource).resetPassword(any(CredentialRepresentation.class));
 
         // When
         spyService.changePassword(passwords, TEST_USER_ID);
 
         // Then
-        verify(userResource).update(any(UserRepresentation.class));
+        verify(userResource).resetPassword(argThat(cred ->
+                cred.getType().equals(CredentialRepresentation.PASSWORD) &&
+                        cred.getValue().equals(passwords.newPassword()) &&
+                        !cred.isTemporary()));
     }
 
     @DisplayName("Change Password : User Not Found")
     @Test
     void givenInvalidUserId_whenChangePassword_thenThrowResourceNotPresentException() {
-        UserManagementService spyService = spy(userManagementService);
-        doReturn(null).when(spyService).retrieveUserRepresentationById(TEST_USER_ID);
-
+        // Given
         PasswordsDto passwords = new PasswordsDto("old", "new");
+        UserManagementService spyService = spy(userManagementService);
+        doReturn(null).when(spyService).retrieveUsersResourceById(TEST_USER_ID);
 
-        assertThrows(ResourceNotPresentException.class, () -> spyService.changePassword(passwords, TEST_USER_ID));
+        // Then
+        assertThrows(ResourceNotPresentException.class,
+                () -> spyService.changePassword(passwords, TEST_USER_ID));
     }
 
     @DisplayName("Change Password : Invalid Old Password")
     @Test
     void givenWrongOldPassword_whenChangePassword_thenThrowInvalidPasswordException() {
-        CredentialRepresentation credential = new CredentialRepresentation();
-        credential.setValue("correctOld123@");
-
-        UserRepresentation user = new UserRepresentation();
-        user.setId(TEST_USER_ID);
-        user.setCredentials(List.of(credential));
-
+        // Given
         PasswordsDto passwords = new PasswordsDto("wrongOld123@", "new123@@");
 
-        UserManagementService spyService = spy(userManagementService);
-        doReturn(user).when(spyService).retrieveUserRepresentationById(TEST_USER_ID);
+        UserRepresentation userRepresentation = new UserRepresentation();
+        userRepresentation.setEmail(TEST_EMAIL);
 
-        assertThrows(InvalidPasswordException.class, () -> spyService.changePassword(passwords, TEST_USER_ID));
+        UserManagementService spyService = spy(userManagementService);
+
+        doReturn(userResource).when(spyService).retrieveUsersResourceById(TEST_USER_ID);
+        when(userResource.toRepresentation()).thenReturn(userRepresentation);
+        doReturn(false).when(spyService).validateCurrentPassword(TEST_EMAIL, passwords.oldPassword());
+
+        // Then
+        assertThrows(InvalidPasswordException.class,
+                () -> spyService.changePassword(passwords, TEST_USER_ID));
+    }
+
+    @DisplayName("Change Password : Keycloak Communication Failure")
+    @Test
+    void givenResetPasswordThrowsException_whenChangePassword_thenThrowKeycloakException() {
+        // Given
+        PasswordsDto passwords = new PasswordsDto("oldPass", "newPass");
+
+        UserRepresentation userRepresentation = new UserRepresentation();
+        userRepresentation.setEmail(TEST_EMAIL);
+
+        UserManagementService spyService = spy(userManagementService);
+
+        doReturn(userResource).when(spyService).retrieveUsersResourceById(TEST_USER_ID);
+        when(userResource.toRepresentation()).thenReturn(userRepresentation);
+        doReturn(true).when(spyService).validateCurrentPassword(TEST_EMAIL, passwords.oldPassword());
+        doThrow(RuntimeException.class).when(userResource).resetPassword(any(CredentialRepresentation.class));
+
+        // Then
+        assertThrows(KeycloakException.class,
+                () -> spyService.changePassword(passwords, TEST_USER_ID));
+    }
+
+    @DisplayName("Validate Current Password : Success")
+    @Test
+    void givenValidCredentials_whenValidateCurrentPassword_thenReturnsTrue() {
+        try (MockedStatic<KeycloakBuilder> mockedBuilder = mockStatic(KeycloakBuilder.class)) {
+            // Given
+            KeycloakBuilder builderMock = mock(KeycloakBuilder.class);
+            mockedBuilder.when(KeycloakBuilder::builder).thenReturn(builderMock);
+
+            when(builderMock.serverUrl(SERVER_URL)).thenReturn(builderMock);
+            when(builderMock.realm(TEST_REALM)).thenReturn(builderMock);
+            when(builderMock.clientId(CLIENT_ID)).thenReturn(builderMock);
+            when(builderMock.clientSecret(CLIENT_SECRET)).thenReturn(builderMock);
+            when(builderMock.username("user@test.com")).thenReturn(builderMock);
+            when(builderMock.password("valid-pass")).thenReturn(builderMock);
+            when(builderMock.build()).thenReturn(keycloak);
+
+            when(keycloak.tokenManager()).thenReturn(mockTokenManager);
+            when(mockTokenManager.getAccessToken()).thenReturn(mock(AccessTokenResponse.class));
+
+            // When - Then
+            boolean result = userManagementService.validateCurrentPassword("user@test.com", "valid-pass");
+            assertTrue(result);
+        }
+    }
+
+    @DisplayName("Validate Current Password : Invalid Credentials")
+    @Test
+    void givenInvalidCredentials_whenValidateCurrentPassword_thenReturnsFalse() {
+        try (MockedStatic<KeycloakBuilder> mockedBuilder = mockStatic(KeycloakBuilder.class)) {
+            // Given
+            KeycloakBuilder builderMock = mock(KeycloakBuilder.class);
+            mockedBuilder.when(KeycloakBuilder::builder).thenReturn(builderMock);
+
+            when(builderMock.serverUrl(SERVER_URL)).thenReturn(builderMock);
+            when(builderMock.realm(TEST_REALM)).thenReturn(builderMock);
+            when(builderMock.clientId(CLIENT_ID)).thenReturn(builderMock);
+            when(builderMock.clientSecret(CLIENT_SECRET)).thenReturn(builderMock);
+            when(builderMock.username("user@test.com")).thenReturn(builderMock);
+            when(builderMock.password("wrong-pass")).thenReturn(builderMock);
+            when(builderMock.build()).thenReturn(keycloak);
+
+            when(keycloak.tokenManager()).thenReturn(mockTokenManager);
+            when(mockTokenManager.getAccessToken()).thenThrow(new RuntimeException("Authentication failed"));
+
+            // When - Then
+            boolean result = userManagementService.validateCurrentPassword("user@test.com", "wrong-pass");
+            assertFalse(result);
+        }
     }
 
     // ==================== Forgot Password Tests ====================
@@ -1234,9 +1316,9 @@ class UserManagementServiceTests {
 
         // Mock UserResource
         UserResource userResource = mock(UserResource.class);
-        when(usersResource.get(TEST_USER_ID)).thenReturn(userResource);
 
         UserManagementService spyService = spy(userManagementService);
+        when(spyService.retrieveUsersResourceById(anyString())).thenReturn(userResource);
         doReturn(true).when(spyService).assignRealmRole(TEST_PILOT_ROLE, TEST_USER_ID, userResource);
         doReturn(true).when(spyService).assignClientRole(TEST_USER_ROLE, TEST_USER_ID, userResource);
 
@@ -1255,10 +1337,9 @@ class UserManagementServiceTests {
         UserDto userDto = new UserDto();
         userDto.setUserId(TEST_USER_ID);
 
-        // Mock NotFoundException
-        when(usersResource.get(TEST_USER_ID)).thenThrow(new NotFoundException("User not found"));
-
         UserManagementService spyService = spy(userManagementService);
+        // Mock NotFoundException
+        doThrow(new NotFoundException("User not found")).when(spyService).retrieveUsersResourceById(TEST_USER_ID);
 
         // When
         spyService.assignRolesToUser(userDto);
@@ -1518,9 +1599,9 @@ class UserManagementServiceTests {
     }
 
     // ==================== Retrieve User Representation By ID Tests ====================
-    @DisplayName("Retrieve User by ID : Success")
+    @DisplayName("Retrieve User Representation by ID : Success")
     @Test
-    void givenUserId_whenRetrieveById_thenReturnUser() {
+    void givenUserId_whenRetrieveUserRepresentationById_thenReturnUser() {
         UserRepresentation user = new UserRepresentation();
         user.setId(TEST_USER_ID);
 
@@ -1532,6 +1613,39 @@ class UserManagementServiceTests {
         assertNotNull(result);
         assertEquals(TEST_USER_ID, result.getId());
     }
+
+    // ==================== Retrieve User Resource By ID Tests ====================
+    @DisplayName("Retrieve User Resource by ID : Success")
+    @Test
+    void givenUserId_whenRetrieveUserResourceById_thenReturnUser() {
+        // Given
+        when(keycloak.realm(TEST_REALM)).thenReturn(realmResource);
+        when(realmResource.users()).thenReturn(usersResource);
+        when(usersResource.get(TEST_USER_ID)).thenReturn(userResource);
+
+        // When
+        UserResource result = userManagementService.retrieveUsersResourceById(TEST_USER_ID);
+
+        // Then
+        assertNotNull(result);
+        assertEquals(userResource, result);
+    }
+
+    @DisplayName("Retrieve User Resource by ID : User Not Found")
+    @Test
+    void givenInvalidUserId_whenRetrieveUserById_thenReturnsNull() {
+        // Given
+        when(keycloak.realm(TEST_REALM)).thenReturn(realmResource);
+        when(realmResource.users()).thenReturn(usersResource);
+        when(usersResource.get(TEST_USER_ID)).thenThrow(new NotFoundException("User not found"));
+
+        // When
+        UserResource result = userManagementService.retrieveUsersResourceById(TEST_USER_ID);
+
+        // Then
+        assertNull(result);
+    }
+
 
     // ==================== Helper Methods ====================
     private UserCreationDto createTestUserCreationDto() {

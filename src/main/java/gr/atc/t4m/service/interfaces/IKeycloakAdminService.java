@@ -1,6 +1,5 @@
 package gr.atc.t4m.service.interfaces;
 
-import gr.atc.t4m.dto.UserDto;
 import gr.atc.t4m.dto.UserRoleDto;
 import gr.atc.t4m.dto.operations.PilotCreationDto;
 import gr.atc.t4m.dto.operations.UserRoleCreationDto;

@@ -13,7 +13,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.security.oauth2.jwt.Jwt;
 
-class JwtUtilsTest {
+class JwtUtilsTests {
     private static Jwt jwt;
 
     @BeforeAll
@@ -285,5 +285,30 @@ class JwtUtilsTest {
 
         String email = JwtUtils.extractUserEmail(jwtWithoutEmail);
         assertNull(email);
+    }
+
+    @DisplayName("Extract username from JWT: Success")
+    @Test
+    void givenJwt_whenExtractUsername_thenReturnEmail() {
+        Jwt jwtWithUsername= Jwt.withTokenValue("token")
+                .headers(header -> header.put("alg", "HS256"))
+                .claims(claims -> claims.put("preferred_username", "john_doe"))
+                .build();
+
+        String username = JwtUtils.extractUsername(jwtWithUsername);
+        assertNotNull(username);
+        assertEquals("john_doe", username);
+    }
+
+    @DisplayName("Extract username from JWT: Null when not present")
+    @Test
+    void givenJwtWithoutEmail_whenExtractUsername_thenReturnNull() {
+        Jwt jwtWithoutUsername= Jwt.withTokenValue("token")
+                .headers(header -> header.put("alg", "HS256"))
+                .claims(claims -> claims.put("preferred_username", null))
+                .build();
+
+        String username = JwtUtils.extractUsername(jwtWithoutUsername);
+        assertNull(username);
     }
 }

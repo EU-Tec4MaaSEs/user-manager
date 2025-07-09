@@ -1,20 +1,18 @@
 package gr.atc.t4m.dto;
 
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
-
-import org.keycloak.representations.idm.RoleRepresentation;
-
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
-
 import gr.atc.t4m.dto.operations.UserRoleCreationDto;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import org.keycloak.representations.idm.RoleRepresentation;
+
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
 
 @Data
 @AllArgsConstructor
