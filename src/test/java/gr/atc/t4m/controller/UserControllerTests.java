@@ -27,8 +27,7 @@ import static org.hamcrest.Matchers.hasSize;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.*;
-import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
-import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.jwt;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -910,6 +909,40 @@ class UserControllerTests {
                 .andExpect(jsonPath("$.data[1].username", Matchers.is("user2")));
     }
 
+    @DisplayName("Retrieve Auth Info: Success")
+    @Test
+    void givenValidJwt_whenRetrieveUserAuthInfo_thenReturnUserInfo() throws Exception {
+        // Given
+        String pilotRole = "PILOT";
+        String userRole = "USER";
+        String pilotCode = "TEST_PILOT";
+
+        // Create a mock JWT with claims
+        Jwt mockJwt = createMockJwtToken(userRole, pilotRole, pilotCode);
+
+        // Mock JWT authentication
+        JwtAuthenticationToken jwtAuthenticationToken = new JwtAuthenticationToken(mockJwt, List.of(new SimpleGrantedAuthority("ROLE_USER")));
+        SecurityContextHolder.getContext().setAuthentication(jwtAuthenticationToken);
+
+        // When
+        ResultActions response = mockMvc.perform(MockMvcRequestBuilders.get("/api/users/auth/info")
+                .contentType(MediaType.APPLICATION_JSON)
+                .with(jwt().jwt(mockJwt)));
+
+        // Then
+        response.andExpect(status().isOk())
+                .andExpect(jsonPath("$.success", Matchers.is(true)))
+                .andExpect(jsonPath("$.message", Matchers.is("User information from given JWT Token retrieved successfully")))
+                .andExpect(jsonPath("$.data.userId", Matchers.is("test-id")))
+                .andExpect(jsonPath("$.data.email", Matchers.is("test@test.com")))
+                .andExpect(jsonPath("$.data.username", Matchers.is("TestUser")))
+                .andExpect(jsonPath("$.data.firstName", Matchers.is("Test")))
+                .andExpect(jsonPath("$.data.lastName", Matchers.is("Test")))
+                .andExpect(jsonPath("$.data.pilotRole", Matchers.is(pilotRole)))
+                .andExpect(jsonPath("$.data.userRole", Matchers.is(userRole)))
+                .andExpect(jsonPath("$.data.pilotCode", Matchers.is(pilotCode)));
+    }
+
     private static Jwt createMockJwtToken(String userRole, String pilotRole, String pilotCode){
         Map<String, Object> headers = new HashMap<>();
         headers.put("alg", "RS256");
@@ -926,6 +959,7 @@ class UserControllerTests {
         claims.put("family_name", "Test");
         claims.put("given_name", "Test");
         claims.put("email", "test@test.com");
+        claims.put("preferred_username", "TestUser");
 
         return new Jwt(
                 tokenValue,

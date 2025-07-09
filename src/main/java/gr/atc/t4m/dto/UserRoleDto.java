@@ -70,7 +70,6 @@ public class UserRoleDto {
         Optional.ofNullable(userRole.getGlobalName())
                 .map(Object::toString)
                 .map(String::trim)
-                .map(String::toUpperCase)
                 .ifPresent(pilotRole -> attributes.put(GLOBAL_NAME, List.of(pilotRole)));
 
         // Update the attributes
