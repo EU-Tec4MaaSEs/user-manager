@@ -13,7 +13,9 @@ import jakarta.ws.rs.NotFoundException;
 import jakarta.ws.rs.core.Response;
 import lombok.extern.slf4j.Slf4j;
 import org.keycloak.admin.client.Keycloak;
+import org.keycloak.admin.client.KeycloakBuilder;
 import org.keycloak.admin.client.resource.UserResource;
+import org.keycloak.representations.idm.CredentialRepresentation;
 import org.keycloak.representations.idm.GroupRepresentation;
 import org.keycloak.representations.idm.RoleRepresentation;
 import org.keycloak.representations.idm.UserRepresentation;
@@ -47,6 +49,10 @@ public class UserManagementService implements IUserManagementService {
     private static final String SUPER_ADMIN_ROLE = "SUPER_ADMIN";
 
     private final String realm;
+    private final String serverUrl;
+    private final String clientId;
+    private final String clientSecret;
+
 
     public UserManagementService(Keycloak keycloak, KeycloakProperties keycloakProperties, IKeycloakAdminService adminService, IEmailService emailService) {
         this.keycloak = keycloak;
@@ -54,6 +60,9 @@ public class UserManagementService implements IUserManagementService {
         this.adminService = adminService;
         this.emailService = emailService;
         realm = keycloakProperties.realm();
+        serverUrl = keycloakProperties.url();
+        clientId = keycloakProperties.clientId();
+        clientSecret = keycloakProperties.clientSecret();
     }
 
     /**
@@ -389,7 +398,8 @@ public class UserManagementService implements IUserManagementService {
     }
 
     /**
-     * Change user password operation
+     * Change user password operation - Note: Keycloak does not expose directly Users Credentials
+     * So we need to check if we get an access token and if the operation is successful to reset the password
      *
      * @param passwords : Old and New password
      * @param userId    : User ID
@@ -399,23 +409,56 @@ public class UserManagementService implements IUserManagementService {
      */
     @Override
     public void changePassword(PasswordsDto passwords, String userId) {
-        UserRepresentation user = retrieveUserRepresentationById(userId);
-        if (user == null)
+        // Retrieve current Users Resource
+        UserResource userResource = retrieveUsersResourceById(userId);
+        if (userResource == null)
             throw new ResourceNotPresentException("User with ID " + userId + " not found");
 
-        if (user.getCredentials() != null && !user.getCredentials().getFirst().getValue().equals(passwords.oldPassword()))
-            throw new InvalidPasswordException("Input for old password does not match with the stored password");
+        // Validate Current Password
+        if (!validateCurrentPassword(userResource.toRepresentation().getEmail(), passwords.oldPassword()))
+            throw new InvalidPasswordException("Current password is incorrect");
 
-        user.getCredentials().getFirst().setValue(passwords.newPassword());
+        // Set new Password
+        CredentialRepresentation credential = new CredentialRepresentation();
+        credential.setType(CredentialRepresentation.PASSWORD);
+        credential.setValue(passwords.newPassword());
+        credential.setTemporary(false);
 
+        // Reset the password
         try {
-            keycloak.realm(realm)
-                    .users()
-                    .get(userId)
-                    .update(user);
+            userResource.resetPassword(credential);
+            log.info("Password successfully changed for user: {}", userId);
         } catch (Exception e) {
             log.error("Error updating user password {}: {}", userId, e.getMessage());
             throw new KeycloakException("Error updating user password with id = " + userId, e);
+        }
+    }
+
+    /**
+     * Validate current password by attempting to authenticate to Keycloak
+     *
+     * @param email : User's email
+     * @param oldPassword : Legacy Password
+     * @return True on success, False on error
+     */
+     boolean validateCurrentPassword(String email, String oldPassword) {
+        try {
+            // Create a temporary Keycloak instance to test connectivity
+            Keycloak testKeycloakAccess = KeycloakBuilder.builder()
+                    .serverUrl(serverUrl)
+                    .realm(realm)
+                    .clientId(clientId)
+                    .clientSecret(clientSecret)
+                    .username(email)
+                    .password(oldPassword)
+                    .build();
+
+            // Ensure that the user is authenticated
+            testKeycloakAccess.tokenManager().getAccessToken();
+            return true;
+        } catch (Exception e) {
+            log.debug("Password validation failed for user: {}", email);
+            return false;
         }
     }
 
@@ -541,7 +584,7 @@ public class UserManagementService implements IUserManagementService {
 
         try {
             // Get user resource
-            UserResource userResource = keycloak.realm(realm).users().get(userData.getUserId());
+            UserResource userResource = retrieveUsersResourceById(userData.getUserId());
             // Assign Realm Roles
             if (userData.getPilotRole() != null) {
                 if(assignRealmRole(userData.getPilotRole(), userData.getUserId(), userResource))
@@ -566,139 +609,157 @@ public class UserManagementService implements IUserManagementService {
         }
     }
 
+    /**
+     * Function to assign Realm Role to user removing any legacy role
+     *
+     * @param pilotRole : Pilot Role to be assigned to User
+     * @param userId    : ID of user
+     */
+    @Override
+    public boolean assignRealmRole(String pilotRole, String userId, UserResource userResource) {
+        try {
+            RoleRepresentation newRealmRole = keycloak.realm(realm)
+                    .roles()
+                    .get(pilotRole)
+                    .toRepresentation();
 
-        /**
-         * Function to assign Realm Role to user removing any legacy role
-         *
-         * @param pilotRole : Pilot Role to be assigned to User
-         * @param userId    : ID of user
-         */
-        @Override
-        public boolean assignRealmRole (String pilotRole, String userId, UserResource userResource){
-            try {
-                RoleRepresentation newRealmRole = keycloak.realm(realm)
-                        .roles()
-                        .get(pilotRole)
-                        .toRepresentation();
+            // Get all realm roles for user
+            List<RoleRepresentation> currentRealmRoles = userResource
+                    .roles()
+                    .realmLevel()
+                    .listAll();
 
-                // Get all realm roles for user
-                List<RoleRepresentation> currentRealmRoles = userResource
-                        .roles()
-                        .realmLevel()
-                        .listAll();
+            // Check if user is already present
+            if (currentRealmRoles.contains(newRealmRole)) {
+                log.info("Realm Role '{}' already assigned to user with ID: {}", pilotRole, userId);
+                return true;
+            }
 
-                // Check if user is already present
-                if (currentRealmRoles.contains(newRealmRole)) {
-                    log.info("Realm Role '{}' already assigned to user with ID: {}", pilotRole, userId);
-                    return true;
-                }
-
-                // Remove all realm roles
-                if (!currentRealmRoles.isEmpty()) {
-                    userResource.roles()
-                            .realmLevel()
-                            .remove(currentRealmRoles);
-                }
+            // Remove all realm roles
+            if (!currentRealmRoles.isEmpty()) {
                 userResource.roles()
                         .realmLevel()
-                        .add(List.of(newRealmRole));
-                return true;
-            } catch (NotFoundException e) {
-                log.error("Realm role '{}' not found in Keycloak", pilotRole);
-                return false;
-            } catch (Exception e) {
-                log.error("Unable to assign realm role of {} to user {}", pilotRole, userId);
-                return false;
+                        .remove(currentRealmRoles);
             }
-        }
-
-        /**
-         * Function to assign Client Role to user
-         *
-         *@param userRole  : User Role to be assigned to User
-         *@param userId    : ID of user
-         */
-        @Override
-        public boolean assignClientRole (String userRole, String userId, UserResource userResource){
-            String clientId = adminService.retrieveClientId();
-            try {
-                RoleRepresentation newClientRole  = keycloak.realm(realm)
-                        .clients()
-                        .get(clientId)
-                        .roles()
-                        .get(userRole)
-                        .toRepresentation();
-
-                List<RoleRepresentation> currentClientRoles = userResource.roles()
-                        .clientLevel(clientId)
-                        .listAll();
-
-                // Check if user is already present
-                if (currentClientRoles.contains(newClientRole)) {
-                    log.info("Client Role '{}' already assigned to user with ID: {}", userRole, userId);
-                    return true;
-                }
-
-                // Remove current roles and add new one
-                if (!currentClientRoles.isEmpty()) {
-                    userResource.roles()
-                            .clientLevel(clientId)
-                            .remove(currentClientRoles);
-                }
-                userResource.roles()
-                        .clientLevel(clientId)
-                        .add(List.of(newClientRole));
-
-                return true;
-            } catch (NotFoundException e) {
-                log.error("Client role '{}' not found in Keycloak", userRole);
-                return false;
-            } catch (Exception e) {
-                log.error("Unable to assign client role of {} to user {}", userRole, userId);
-                return false;
-            }
-        }
-
-        /**
-         * Retrieve a User By Email
-         *
-         * @param email : User Email
-         * @return UserRepresentation
-         */
-        UserRepresentation retrieveUserRepresentationByEmail (String email){
-            try {
-                List<UserRepresentation> users = keycloak.realm(realm)
-                        .users()
-                        .searchByEmail(email, true); // Search by Exact Match
-
-                return users.stream()
-                        .findFirst()
-                        .orElse(null);
-            } catch (NotFoundException e) {
-                return null;
-            } catch (Exception e) {
-                log.error("Error retrieving user by email from Keycloak: {}", e.getMessage(), e);
-                throw new KeycloakException("Error retrieving user by email from Keycloak", e);
-            }
-        }
-
-        /**
-         * Retrieve a User By Email
-         *
-         * @param userId : User ID
-         * @return UserRepresentation
-         */
-        UserRepresentation retrieveUserRepresentationById (String userId){
-            try {
-                return keycloak.realm(realm)
-                        .users()
-                        .get(userId)
-                        .toRepresentation();
-            } catch (NotFoundException e) {
-                return null;
-            } catch (Exception e) {
-                log.error("Error retrieving user from Keycloak: {}", e.getMessage(), e);
-                throw new KeycloakException("Error retrieving user from Keycloak", e);
-            }
+            userResource.roles()
+                    .realmLevel()
+                    .add(List.of(newRealmRole));
+            return true;
+        } catch (NotFoundException e) {
+            log.error("Realm role '{}' not found in Keycloak", pilotRole);
+            return false;
+        } catch (Exception e) {
+            log.error("Unable to assign realm role of {} to user {}", pilotRole, userId);
+            return false;
         }
     }
+
+    /**
+     * Function to assign Client Role to user
+     *
+     * @param userRole : User Role to be assigned to User
+     * @param userId   : ID of user
+     */
+    @Override
+    public boolean assignClientRole(String userRole, String userId, UserResource userResource) {
+        String clientId = adminService.retrieveClientId();
+        try {
+            RoleRepresentation newClientRole = keycloak.realm(realm)
+                    .clients()
+                    .get(clientId)
+                    .roles()
+                    .get(userRole)
+                    .toRepresentation();
+
+            List<RoleRepresentation> currentClientRoles = userResource.roles()
+                    .clientLevel(clientId)
+                    .listAll();
+
+            // Check if user is already present
+            if (currentClientRoles.contains(newClientRole)) {
+                log.info("Client Role '{}' already assigned to user with ID: {}", userRole, userId);
+                return true;
+            }
+
+            // Remove current roles and add new one
+            if (!currentClientRoles.isEmpty()) {
+                userResource.roles()
+                        .clientLevel(clientId)
+                        .remove(currentClientRoles);
+            }
+            userResource.roles()
+                    .clientLevel(clientId)
+                    .add(List.of(newClientRole));
+
+            return true;
+        } catch (NotFoundException e) {
+            log.error("Client role '{}' not found in Keycloak", userRole);
+            return false;
+        } catch (Exception e) {
+            log.error("Unable to assign client role of {} to user {}", userRole, userId);
+            return false;
+        }
+    }
+
+    /**
+     * Retrieve a User By Email
+     *
+     * @param email : User Email
+     * @return UserRepresentation
+     */
+    UserRepresentation retrieveUserRepresentationByEmail(String email) {
+        try {
+            List<UserRepresentation> users = keycloak.realm(realm)
+                    .users()
+                    .searchByEmail(email, true); // Search by Exact Match
+
+            return users.stream()
+                    .findFirst()
+                    .orElse(null);
+        } catch (NotFoundException e) {
+            return null;
+        } catch (Exception e) {
+            log.error("Error retrieving user by email from Keycloak: {}", e.getMessage(), e);
+            throw new KeycloakException("Error retrieving user by email from Keycloak", e);
+        }
+    }
+
+    /**
+     * Retrieve a User Representation By Email
+     *
+     * @param userId : User ID
+     * @return UserRepresentation
+     */
+    UserRepresentation retrieveUserRepresentationById(String userId) {
+        try {
+            return keycloak.realm(realm)
+                    .users()
+                    .get(userId)
+                    .toRepresentation();
+        } catch (NotFoundException e) {
+            return null;
+        } catch (Exception e) {
+            log.error("Error retrieving user from Keycloak: {}", e.getMessage(), e);
+            throw new KeycloakException("Error retrieving user from Keycloak", e);
+        }
+    }
+
+    /**
+     * Retrieve a User Resource By Email
+     *
+     * @param userId : User ID
+     * @return User Resource
+     */
+    UserResource retrieveUsersResourceById(String userId) {
+        try {
+            return keycloak.realm(realm)
+                    .users()
+                    .get(userId);
+        } catch (NotFoundException e) {
+            return null;
+        } catch (Exception e) {
+            log.error("Error retrieving user resource by ID from Keycloak: {}", e.getMessage(), e);
+            throw new KeycloakException("Error retrieving user resource by ID from Keycloak", e);
+        }
+    }
+}

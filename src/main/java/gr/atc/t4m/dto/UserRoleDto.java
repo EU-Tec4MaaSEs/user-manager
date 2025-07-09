@@ -63,14 +63,13 @@ public class UserRoleDto {
             roleRepresentation.setClientRole(true);
             attributes = new HashMap<>();
         } else {
-            attributes = existingRoleRepresentation.getAttributes() != null ? existingRoleRepresentation.getAttributes() : new HashMap<>(); // Ensure that attributes is not empty or create a new HashMap
+            attributes = existingRoleRepresentation.getAttributes() != null ? existingRoleRepresentation.getAttributes() : new HashMap<>();
         }
 
         // Add global name to attribute if included in UserRoleDTO
         Optional.ofNullable(userRole.getGlobalName())
                 .map(Object::toString)
                 .map(String::trim)
-                .map(String::toUpperCase)
                 .ifPresent(pilotRole -> attributes.put(GLOBAL_NAME, List.of(pilotRole)));
 
         // Update the attributes
