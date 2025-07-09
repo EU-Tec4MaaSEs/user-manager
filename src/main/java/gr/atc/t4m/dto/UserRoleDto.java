@@ -63,7 +63,7 @@ public class UserRoleDto {
             roleRepresentation.setClientRole(true);
             attributes = new HashMap<>();
         } else {
-            attributes = existingRoleRepresentation.getAttributes() != null ? existingRoleRepresentation.getAttributes() : new HashMap<>(); // Ensure that attributes is not empty or create a new HashMap
+            attributes = existingRoleRepresentation.getAttributes() != null ? existingRoleRepresentation.getAttributes() : new HashMap<>();
         }
 
         // Add global name to attribute if included in UserRoleDTO
