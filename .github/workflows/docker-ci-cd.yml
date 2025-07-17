@@ -2,6 +2,8 @@ name: Docker Image CI - User Manager
 
 env:
   DOCKER_IMAGE: user-manager
+  DEPLOYMENT_FILE: user-manager-deployment
+  NAMESPACE: tec4maases
 
 on:
   push:
@@ -49,3 +51,28 @@ jobs:
         cache-to: type=gha,mode=max
         build-args: |
           BUILDKIT_INLINE_CACHE=1
+
+  aks-deploy:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Azure Login
+      uses: azure/login@v1
+      with:
+        creds: |
+          {
+            "clientId": "${{ secrets.AZURE_CLIENT_ID }}",
+            "clientSecret": "${{ secrets.AZURE_CLIENT_SECRET }}",
+            "subscriptionId": "${{ secrets.AZURE_SUBSCRIPTION_ID }}",
+            "tenantId": "${{ secrets.AZURE_TENANT_ID }}"
+          }
+    
+    - name: Set AKS context
+      uses: azure/aks-set-context@v3
+      with:
+        resource-group: ${{ secrets.AKS_RESOURCE_GROUP }}
+        cluster-name: ${{ secrets.AKS_CLUSTER_NAME }}
+    
+    - name: Rolling restart deployment
+      run: |
+        kubectl rollout restart deployment/${{ env.DEPLOYMENT_FILE }} -n ${{ env.NAMESPACE }}
+        kubectl rollout status deployment/${{ env.DEPLOYMENT_FILE }} -n ${{ env.NAMESPACE }} --timeout=300s
