@@ -66,17 +66,30 @@ jobs:
             "tenantId": "${{ secrets.AZURE_TENANT_ID }}"
           }
     
+    - name: Setup kubectl
+      uses: azure/setup-kubectl@v3
+      with:
+        version: 'latest'
+    
+    - name: Install kubelogin
+      run: |
+        # Download and install kubelogin
+        az aks install-cli
+    
     - name: Set AKS context
       uses: azure/aks-set-context@v3
       with:
         resource-group: ${{ secrets.AKS_RESOURCE_GROUP }}
         cluster-name: ${{ secrets.AKS_CLUSTER_NAME }}
-
-    - name: Setup kubectl
-      id: install-kubectl
-      uses: azure/setup-kubectl@v3
-        
+    
+    - name: Convert kubeconfig to use service principal
+      run: |
+        kubelogin convert-kubeconfig -l spn
+    
     - name: Rolling restart deployment
+      env:
+        AAD_SERVICE_PRINCIPAL_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+        AAD_SERVICE_PRINCIPAL_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
       run: |
         kubectl rollout restart deployment/${{ env.DEPLOYMENT_FILE }} -n ${{ env.NAMESPACE }}
         kubectl rollout status deployment/${{ env.DEPLOYMENT_FILE }} -n ${{ env.NAMESPACE }} --timeout=300s
