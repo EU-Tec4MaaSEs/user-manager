@@ -71,7 +71,11 @@ jobs:
       with:
         resource-group: ${{ secrets.AKS_RESOURCE_GROUP }}
         cluster-name: ${{ secrets.AKS_CLUSTER_NAME }}
-    
+
+    - name: Setup kubectl
+      id: install-kubectl
+      uses: azure/setup-kubectl@v3
+        
     - name: Rolling restart deployment
       run: |
         kubectl rollout restart deployment/${{ env.DEPLOYMENT_FILE }} -n ${{ env.NAMESPACE }}
