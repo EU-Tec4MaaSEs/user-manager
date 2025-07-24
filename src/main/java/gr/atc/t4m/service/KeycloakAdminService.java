@@ -9,6 +9,7 @@ import static gr.atc.t4m.exception.CustomExceptions.*;
 import gr.atc.t4m.dto.operations.UserRoleCreationDto;
 import gr.atc.t4m.config.properties.KeycloakProperties;
 import gr.atc.t4m.service.interfaces.IKeycloakAdminService;
+import jakarta.ws.rs.core.Response;
 import lombok.extern.slf4j.Slf4j;
 import org.keycloak.admin.client.Keycloak;
 import org.keycloak.representations.idm.*;
@@ -153,18 +154,59 @@ public class KeycloakAdminService implements IKeycloakAdminService {
         if (existingRepresentation != null)
             throw new ResourceAlreadyExistsException("Pilot '" + newPilot.name() + "' already exists");
 
-        PilotDto pilotDto = new PilotDto();
-        pilotDto.setName(newPilot.name());
-        pilotDto.setSubGroups(newPilot.subGroups());
+        PilotDto pilotDto = PilotDto.fromPilotCreationDto(newPilot);
 
         try {
-            keycloak.realm(realm)
+            // Create the Group in Keycloak
+            Response response = keycloak.realm(realm)
                     .groups()
-                    .add(PilotDto.toGroupRepresentation(pilotDto));
+                    .add(PilotDto.toGroupRepresentation(pilotDto, null));
+
+            // Get the created group ID from the Location header
+            String groupId = extractGroupIdFromResponse(response);
+
+            // Create the subgroups for the created pilot
+            createSubgroups(groupId, newPilot.subGroups());
+            log.debug("Pilot '{}' created successfully with ID '{}'", newPilot.name(), groupId);
         } catch (Exception e) {
             log.error("Error creating pilot: {}", e.getMessage(), e);
             throw new KeycloakException("Error creating pilot", e);
         }
+    }
+
+    /**
+     * Extract Group ID from the Location header of the response
+     *
+     * @param response : Response from Keycloak
+     * @return String (Group ID)
+     */
+    private String extractGroupIdFromResponse(Response response) {
+        String location = response.getHeaderString("Location");
+        return location.substring(location.lastIndexOf('/') + 1);
+    }
+
+    /**
+     * Create subgroups for a given parent group
+     *
+     * @param parentGroupId : Parent Group ID
+     * @param subGroups     : List of Subgroup Names
+     */
+    private void createSubgroups(String parentGroupId, List<String> subGroups) {
+            for (String subGroup : subGroups) {
+                try {
+                    GroupRepresentation subGroupRepr = new GroupRepresentation();
+                    subGroupRepr.setName(subGroup);
+
+                    keycloak.realm(realm)
+                            .groups()
+                            .group(parentGroupId)
+                            .subGroup(subGroupRepr);
+                    log.debug("Subgroup '{}' created successfully under parent group ID '{}'", subGroup, parentGroupId);
+                } catch (Exception e) {
+                    log.error("Error creating subgroup '{}': {}", subGroup, e.getMessage(), e);
+                    throw new KeycloakException("Error creating subgroup", e);
+                }
+            }
     }
 
     /**
@@ -186,6 +228,7 @@ public class KeycloakAdminService implements IKeycloakAdminService {
                     .groups()
                     .group(groupRepresentation.getId())
                     .remove();
+            log.debug("Pilot '{}' deleted successfully", pilot);
         } catch (Exception e) {
             log.error("Error deleting pilot: {}", e.getMessage(), e);
             throw new KeycloakException("Error deleting pilot", e);
@@ -226,10 +269,44 @@ public class KeycloakAdminService implements IKeycloakAdminService {
                     .roles()
                     .clientLevel(retrieveClientId())
                     .add(Collections.singletonList(roleRepresentation));
+            log.debug("User role '{}' assigned to pilot '{}'", userRole, pilotCode);
         } catch (Exception e) {
             log.error("Error assigning user role to pilot: {}", e.getMessage(), e);
             throw new KeycloakException("Error assigning user role to pilot", e);
         }
+    }
+
+    /**
+     * Update Pilot by Name
+     *
+     * @param pilotData : Pilot Data
+     */
+    @Override
+    @CacheEvict(value = "pilotCodes", allEntries = true)
+    public void updatePilotByName(PilotDto pilotData) {
+        try {
+            GroupRepresentation existingGroup = retrieveGroupRepresentationByName(pilotData.getName());
+            if (existingGroup == null) {
+                throw new ResourceNotPresentException("Pilot '" + pilotData.getName() + "' not found");
+            }
+
+            // Update the group representation
+            GroupRepresentation updatedGroup = PilotDto.toGroupRepresentation(pilotData, existingGroup);
+            updatedGroup.setId(existingGroup.getId());
+
+            // Update the group in Keycloak
+            keycloak.realm(realm)
+                    .groups()
+                    .group(existingGroup.getId())
+                    .update(updatedGroup);
+
+            log.debug("Pilot '{}' updated successfully", pilotData.getName());
+        } catch (Exception e) {
+            log.error("Error updating pilot: {}", e.getMessage(), e);
+            throw new KeycloakException("Error updating pilot", e);
+
+        }
+
     }
 
     /*
@@ -256,7 +333,7 @@ public class KeycloakAdminService implements IKeycloakAdminService {
         try {
             return keycloak.realm(realm)
                     .groups()
-                    .groups();
+                    .groups(null, null, null, false); // Retrieve all groups with no brief representation
         } catch (Exception e) {
             log.error("Error retrieving keycloak groups: {}", e.getMessage(), e);
             return Collections.emptyList();

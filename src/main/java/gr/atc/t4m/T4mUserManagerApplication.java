@@ -2,6 +2,7 @@ package gr.atc.t4m;
 
 import gr.atc.t4m.config.properties.CacheProperties;
 import gr.atc.t4m.config.properties.EmailProperties;
+import gr.atc.t4m.config.properties.KafkaProperties;
 import gr.atc.t4m.config.properties.KeycloakProperties;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
@@ -11,7 +12,7 @@ import org.springframework.scheduling.annotation.EnableAsync;
 import org.springframework.scheduling.annotation.EnableScheduling;
 
 @SpringBootApplication
-@EnableConfigurationProperties({KeycloakProperties.class, CacheProperties.class, EmailProperties.class})
+@EnableConfigurationProperties({KeycloakProperties.class, CacheProperties.class, EmailProperties.class, KafkaProperties.class})
 @EnableScheduling
 @EnableCaching
 @EnableAsync
