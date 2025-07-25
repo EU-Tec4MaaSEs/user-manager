@@ -5,7 +5,7 @@
 	<parent>
 		<groupId>org.springframework.boot</groupId>
 		<artifactId>spring-boot-starter-parent</artifactId>
-		<version>3.5.0</version>
+		<version>3.5.3</version>
 		<relativePath/> <!-- lookup parent from repository -->
 	</parent>
 	<groupId>gr.atc</groupId>
@@ -39,6 +39,8 @@
 		<sonar.projectVersion>1.0.0</sonar.projectVersion>
 		<sonar.sourceEncoding>UTF-8</sonar.sourceEncoding>
 		<sonar.coverage.jacoco.xmlReportPaths>${project.basedir}/target/site/jacoco/jacoco.xml</sonar.coverage.jacoco.xmlReportPaths>
+		<maven.compiler.source>21</maven.compiler.source>
+		<maven.compiler.target>21</maven.compiler.target>
 	</properties>
 	<dependencies>
 		<!-- Spring -->
@@ -82,6 +84,10 @@
 			<groupId>org.springframework.boot</groupId>
 			<artifactId>spring-boot-starter-security</artifactId>
 		</dependency>
+		<dependency>
+			<groupId>org.springframework.kafka</groupId>
+			<artifactId>spring-kafka</artifactId>
+		</dependency>
 		<!-- Caching -->
 		<!-- https://mvnrepository.com/artifact/com.github.ben-manes.caffeine/caffeine -->
 		<dependency>
@@ -93,6 +99,11 @@
 		<dependency>
 			<groupId>org.springframework.boot</groupId>
 			<artifactId>spring-boot-starter-test</artifactId>
+			<scope>test</scope>
+		</dependency>
+		<dependency>
+			<groupId>org.springframework.kafka</groupId>
+			<artifactId>spring-kafka-test</artifactId>
 			<scope>test</scope>
 		</dependency>
 		<dependency>

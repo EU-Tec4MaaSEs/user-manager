@@ -20,7 +20,6 @@ import org.mockito.Mockito;
 import static org.mockito.Mockito.when;
 
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;

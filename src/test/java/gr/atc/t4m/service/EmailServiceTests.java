@@ -193,4 +193,25 @@ class EmailServiceTests {
         assertThat(future).isNotNull();
         assertThat(future).isInstanceOf(CompletableFuture.class);
     }
+
+    @DisplayName("Send Organization Registration Email : Success")
+    @Test
+    void givenOrganizationDetails_whenSendOrganizationRegistrationEmail_thenSuccess() {
+        // Given
+        String organizationName = "Test Organization";
+        ArgumentCaptor<String> htmlContentCaptor = ArgumentCaptor.forClass(String.class);
+
+        // Spy the service
+        EmailService spyEmailService = spy(emailService);
+        doNothing().when(spyEmailService).sendMessage(eq(TEST_EMAIL), htmlContentCaptor.capture(), anyString());
+
+        // When
+        spyEmailService.sendOrganizationRegistrationEmail(TEST_FULL_NAME, TEST_EMAIL, organizationName);
+
+        // Then
+        String capturedHtmlContent = htmlContentCaptor.getValue();
+        assertThat(capturedHtmlContent).contains(TEST_FULL_NAME);
+        assertThat(capturedHtmlContent).contains(organizationName);
+        assertThat(capturedHtmlContent).contains(TEST_DASHBOARD_URL);
+    }
 }
