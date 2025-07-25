@@ -1,9 +1,12 @@
 package gr.atc.t4m.controller;
 
+import gr.atc.t4m.dto.PilotDto;
+import gr.atc.t4m.dto.UserDto;
 import gr.atc.t4m.dto.UserRoleDto;
 import gr.atc.t4m.dto.operations.PilotCreationDto;
 import gr.atc.t4m.dto.operations.UserRoleCreationDto;
 import gr.atc.t4m.service.interfaces.IKeycloakAdminService;
+import gr.atc.t4m.service.interfaces.IUserManagementService;
 import gr.atc.t4m.util.JwtUtils;
 import io.swagger.v3.oas.annotations.Hidden;
 import io.swagger.v3.oas.annotations.Operation;
@@ -29,13 +32,15 @@ public class AdminController {
      * Pilots (Pilot Codes): Use case organizations
      * User Roles : Roles of user within the organization (Specific roles)
      */
-
     private final IKeycloakAdminService adminService;
+    private final IUserManagementService userManagementService;
+
     private static final String SUPER_ADMIN_ROLE = "SUPER_ADMIN";
     private static final String GLOBAL_PILOT_CODE = "ALL";
 
-    public AdminController(IKeycloakAdminService adminService) {
+    public AdminController(IKeycloakAdminService adminService, IUserManagementService userManagementService) {
         this.adminService = adminService;
+        this.userManagementService = userManagementService;
     }
 
     /*
@@ -104,6 +109,7 @@ public class AdminController {
     })
     @PreAuthorize("hasRole('SUPER_ADMIN')")
     @PostMapping("/pilots/create")
+    @Hidden
     public ResponseEntity<BaseAppResponse<Void>> createPilot(@Parameter(
             description = "Pilot information",
             required = true) @Valid @RequestBody PilotCreationDto pilotData) {
@@ -136,6 +142,47 @@ public class AdminController {
         adminService.deletePilotByName(pilotName.trim().toUpperCase());
         return new ResponseEntity<>(BaseAppResponse.success(null, "Pilot deleted successfully"), HttpStatus.OK);
     }
+
+    /**
+     * Update a Pilot in Keycloak
+     */
+    @Operation(summary = "Update an existing Pilot / Organization", security = @SecurityRequirement(name = "bearerToken"))
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Pilot updated successfully"),
+            @ApiResponse(responseCode = "401", description = "Unauthorized request. Check token and try again. | Thrown when no JWT Token is provided as Bearer Token"),
+            @ApiResponse(responseCode = "403", description = "Invalid authorization parameters | Thrown when user can not access the specific resource"),
+            @ApiResponse(responseCode = "403", description = "Invalid JWT token attributes | Thrown when some attributes are missing from the JWT Token"),
+            @ApiResponse(responseCode = "403", description = "You are unauthorized to request/modify this resource | Thrown when a user attempts to alter a resource that he/she is not authorized to access"),
+            @ApiResponse(responseCode = "403", description = "You are not authorized to update information on this pilot"),
+            @ApiResponse(responseCode = "404", description = "Resource not found")
+    })
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'ADMIN')")
+    @PutMapping("/pilots/{pilotName}")
+    public ResponseEntity<BaseAppResponse<Void>> updatePilot(@AuthenticationPrincipal Jwt jwt,
+                                                              @Parameter(name = "pilotName",
+                                                                      description = "Name of the Pilot",
+                                                                      required = true) @PathVariable String pilotName,
+                                                              @Parameter(name = "pilotData",
+                                                                      description = "Updated pilot information - Not all fields required",
+                                                                      required = true) @Valid @RequestBody PilotDto pilotData) {
+
+        String pilotRole = JwtUtils.extractPilotRole(jwt);
+
+        // Check if the user is a Super Admin
+        if (!pilotRole.equalsIgnoreCase(SUPER_ADMIN_ROLE)) {
+            String userId = JwtUtils.extractUserId(jwt);
+            UserDto user = userManagementService.retrieveUserById(userId);
+            if (!user.getPilotCode().equalsIgnoreCase(pilotName.trim().toUpperCase())) {
+                return new ResponseEntity<>(BaseAppResponse.error("You are not authorized to update information on this pilot"), HttpStatus.FORBIDDEN);
+            }
+        }
+        pilotData.setName(pilotName.trim().toUpperCase());
+
+        // Update Pilot in Keycloak
+        adminService.updatePilotByName(pilotData);
+        return new ResponseEntity<>(BaseAppResponse.success(null, "Pilot updated successfully"), HttpStatus.OK);
+    }
+
 
     /*
      * User Roles (Specific roles in Platform - Pilot)

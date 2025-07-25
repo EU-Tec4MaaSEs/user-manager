@@ -1,5 +1,6 @@
 package gr.atc.t4m.service.interfaces;
 
+import gr.atc.t4m.dto.PilotDto;
 import gr.atc.t4m.dto.UserRoleDto;
 import gr.atc.t4m.dto.operations.PilotCreationDto;
 import gr.atc.t4m.dto.operations.UserRoleCreationDto;
@@ -24,6 +25,8 @@ public interface IKeycloakAdminService {
     void deletePilotByName(String pilot);
 
     void assignUserRoleToPilot(String userRole, String pilotCode);
+
+    void updatePilotByName(PilotDto pilotData);
 
     /*---------------------
      * Realm Management

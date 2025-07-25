@@ -50,7 +50,6 @@ public record UserCreationDto(
                 requiredMode = Schema.RequiredMode.REQUIRED)
         String pilotRole,
 
-        @NotEmpty(message = "Pilot code cannot be empty")
         @Schema(description = "Pilot Code of the user. Pilot code must exist",
                 name = "pilotCode",
                 type = "String",

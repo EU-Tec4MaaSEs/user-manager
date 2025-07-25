@@ -66,11 +66,11 @@ public class UserManagementService implements IUserManagementService {
     }
 
     /**
-     * Handles logout of user in Async manner for better performance
+     * Handles logout of user in Async("taskExecutor") manner for better performance
      *
      * @param userId : User ID
      */
-    @Async
+    @Async("taskExecutor")
     @Override
     public void logoutUser(String userId) {
         try {
@@ -576,7 +576,7 @@ public class UserManagementService implements IUserManagementService {
      *
      * @param userData : User details
      */
-    @Async
+    @Async("taskExecutor")
     @Override
     public void assignRolesToUser(UserDto userData) {
         if (userData == null || userData.getUserId() == null)
