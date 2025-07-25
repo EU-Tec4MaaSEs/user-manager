@@ -3,6 +3,7 @@ package gr.atc.t4m.dto;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import gr.atc.t4m.dto.operations.PilotCreationDto;
+import gr.atc.t4m.enums.OrganizationDataFields;
 import gr.atc.t4m.enums.T4mRole;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -74,16 +75,16 @@ public class PilotDto {
 
         // Add the new / updated attributes to the organization
         if (pilotDto.getRoles() != null) {
-            setListAttributesIfPresent(attributes, "T4M_ROLE",
+            setListAttributesIfPresent(attributes, OrganizationDataFields.T4M_ROLE.toString(),
                     pilotDto.getRoles().stream().map(T4mRole::toString).toList());
         }
 
-        setAttributeIfPresent(attributes, "DATA_SPACE_CONNECTOR_URL",
+        setAttributeIfPresent(attributes, OrganizationDataFields.DATA_SPACE_CONNECTOR_URL.toString(),
                 pilotDto.getDataSpaceConnectorUrl());
 
-        setAttributeIfPresent(attributes, "ENCODED_VERIFIABLE_CREDENTIAL",
+        setAttributeIfPresent(attributes, OrganizationDataFields.ENCODED_VERIFIABLE_CREDENTIAL.toString(),
                 pilotDto.getVerifiableCredential());
-        setAttributeIfPresent(attributes, "GLOBAL_NAME",
+        setAttributeIfPresent(attributes, OrganizationDataFields.GLOBAL_NAME.toString(),
                 pilotDto.getGlobalName());
 
         if (!attributes.isEmpty()) {
@@ -128,8 +129,9 @@ public class PilotDto {
             Map<String, List<String>> attributes = group.getAttributes();
 
             // Extract roles
-            if (attributes.containsKey("T4M_ROLE")) {
-                Set<T4mRole> roles = attributes.get("T4M_ROLE").stream()
+            if (attributes.containsKey(OrganizationDataFields.T4M_ROLE.toString())) {
+                Set<T4mRole> roles = attributes.get(OrganizationDataFields.T4M_ROLE.toString())
+                        .stream()
                         .map(roleString -> {
                             try {
                                 return T4mRole.valueOf(roleString);
@@ -143,25 +145,24 @@ public class PilotDto {
             }
 
             // Extract dataSpaceConnectorUrl
-            if (attributes.containsKey("DATA_SPACE_CONNECTOR_URL") &&
-                    !attributes.get("DATA_SPACE_CONNECTOR_URL").isEmpty()) {
-                pilotDto.setDataSpaceConnectorUrl(attributes.get("DATA_SPACE_CONNECTOR_URL").getFirst());
-            }
+            pilotDto.setDataSpaceConnectorUrl(getAttributesValue(attributes,
+                    OrganizationDataFields.DATA_SPACE_CONNECTOR_URL.toString()));
 
             // Extract verifiableCredential
-            if (attributes.containsKey("ENCODED_VERIFIABLE_CREDENTIAL") &&
-                    !attributes.get("ENCODED_VERIFIABLE_CREDENTIAL").isEmpty()) {
-                pilotDto.setVerifiableCredential(attributes.get("ENCODED_VERIFIABLE_CREDENTIAL").getFirst());
-            }
+            pilotDto.setVerifiableCredential(getAttributesValue(attributes,
+                    OrganizationDataFields.ENCODED_VERIFIABLE_CREDENTIAL.toString()));
 
             // Extract globalName
-            if (attributes.containsKey("GLOBAL_NAME") &&
-                    !attributes.get("GLOBAL_NAME").isEmpty()) {
-                pilotDto.setGlobalName(attributes.get("GLOBAL_NAME").getFirst());
-            }
+            pilotDto.setGlobalName(getAttributesValue(attributes,
+                    OrganizationDataFields.GLOBAL_NAME.toString()));
         }
 
         return pilotDto;
+    }
+
+    private static String getAttributesValue(Map<String, List<String>> map, String key) {
+        List<String> values = map.get(key);
+        return (values != null && !values.isEmpty()) ? values.getFirst() : null;
     }
 
     /*
