@@ -1,7 +1,6 @@
 package gr.atc.t4m.dto;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
-import com.fasterxml.jackson.annotation.JsonInclude;
 import gr.atc.t4m.dto.operations.PilotCreationDto;
 import gr.atc.t4m.enums.OrganizationDataFields;
 import gr.atc.t4m.enums.T4mRole;
@@ -18,7 +17,6 @@ import java.util.stream.Collectors;
 @AllArgsConstructor
 @NoArgsConstructor
 @Builder
-@JsonInclude(JsonInclude.Include.NON_NULL)
 public class PilotDto {
 
     @JsonProperty("name")
@@ -49,7 +47,9 @@ public class PilotDto {
 
         // Set the group name and path according to the pilot's global name, if available
         String groupName = Optional.ofNullable(pilotDto.getGlobalName())
+                .map(String::trim)
                 .map(String::toUpperCase)
+                .map(name -> String.join("-", name.split("\\s+")))
                 .orElse(pilotDto.getName());
 
         group.setName(groupName);

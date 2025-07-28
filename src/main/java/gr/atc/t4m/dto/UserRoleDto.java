@@ -1,6 +1,5 @@
 package gr.atc.t4m.dto;
 
-import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import gr.atc.t4m.dto.operations.UserRoleCreationDto;
 import lombok.AllArgsConstructor;
@@ -18,7 +17,6 @@ import java.util.Optional;
 @AllArgsConstructor
 @NoArgsConstructor
 @Builder
-@JsonInclude(JsonInclude.Include.NON_NULL)
 public class UserRoleDto {
     private static final String GLOBAL_NAME = "global_name";
 
