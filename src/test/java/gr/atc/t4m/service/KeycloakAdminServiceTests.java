@@ -6,6 +6,7 @@ import gr.atc.t4m.dto.UserRoleDto;
 import gr.atc.t4m.dto.operations.PilotCreationDto;
 import gr.atc.t4m.dto.operations.UserRoleCreationDto;
 import gr.atc.t4m.enums.T4mRole;
+import gr.atc.t4m.events.OrganizationDeletionEvent;
 import jakarta.ws.rs.core.Response;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -18,6 +19,7 @@ import org.keycloak.representations.idm.GroupRepresentation;
 import org.keycloak.representations.idm.RoleRepresentation;
 import org.mockito.*;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.test.util.ReflectionTestUtils;
 
 import static gr.atc.t4m.exception.CustomExceptions.*;
@@ -41,6 +43,9 @@ class KeycloakAdminServiceTests {
 
     @Mock
     private KeycloakProperties keycloakProperties;
+
+    @Mock
+    private ApplicationEventPublisher eventPublisher;
 
     @Mock
     private RealmResource realmResource;
@@ -89,7 +94,7 @@ class KeycloakAdminServiceTests {
         lenient().when(keycloakProperties.excludedDefaultRoles()).thenReturn("SUPER_ADMIN,DEFAULT_ROLES");
         lenient().when(keycloakProperties.initClientId()).thenReturn(true);
 
-        adminService = new KeycloakAdminService(keycloak, keycloakProperties);
+        adminService = new KeycloakAdminService(keycloak, keycloakProperties, eventPublisher);
         lenient().when(keycloak.realm(anyString())).thenReturn(realmResource);
         lenient().when(realmResource.groups()).thenReturn(groupsResource);
     }
@@ -347,6 +352,7 @@ class KeycloakAdminServiceTests {
         @DisplayName("Delete Pilot : Success")
         @Test
         void givenExistingPilot_whenDelete_thenRemoveCalled() {
+            // Given
             GroupRepresentation group = new GroupRepresentation();
             group.setName(TEST_GROUP_NAME);
             group.setId(TEST_GROUP_ID);
@@ -355,19 +361,33 @@ class KeycloakAdminServiceTests {
             when(groupsResource.groups(any(), any(), any(), anyBoolean())).thenReturn(List.of(group));
             when(groupsResource.group(TEST_GROUP_ID)).thenReturn(groupResource);
 
+            // When
             adminService.deletePilotByName(TEST_GROUP_NAME);
 
+            // Then
             verify(groupResource).remove();
+            
+            // Verify OrganizationDeletionEvent is published
+            ArgumentCaptor<OrganizationDeletionEvent> eventCaptor = ArgumentCaptor.forClass(OrganizationDeletionEvent.class);
+            verify(eventPublisher).publishEvent(eventCaptor.capture());
+            
+            OrganizationDeletionEvent publishedEvent = eventCaptor.getValue();
+            assertEquals(TEST_GROUP_NAME, publishedEvent.getPilotName());
+            assertEquals(adminService, publishedEvent.getSource());
         }
 
         @DisplayName("Delete Pilot : Not Found")
         @Test
         void givenInvalidPilot_whenDelete_thenThrowResourceNotPresentException() {
+            // Given
             when(groupsResource.groups()).thenReturn(List.of());
 
+            // When & Then
             assertThrows(ResourceNotPresentException.class, () -> adminService.deletePilotByName(TEST_GROUP_NAME));
 
             verify(groupsResource, never()).group(any());
+            // Verify no event is published when pilot not found
+            verify(eventPublisher, never()).publishEvent(any());
         }
 
         @DisplayName("Update Pilot : Success")

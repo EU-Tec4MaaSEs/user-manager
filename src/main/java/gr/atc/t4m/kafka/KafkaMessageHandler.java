@@ -43,7 +43,7 @@ public class KafkaMessageHandler {
     @KafkaListener(topics = "#{'${spring.kafka.consumer.topics}'.split(',')}", groupId = "${spring.kafka.consumer.group-id}", errorHandler = "kafkaErrorHandler")
     public void consume(@Valid EventDto event, @Header(KafkaHeaders.RECEIVED_TOPIC) String topic) {
         String globalName = event.data().name();
-        String pilotName = globalName.trim().toUpperCase();
+        String pilotName = String.join("-", globalName.trim().toUpperCase().split("\\s+"));
         try {
             // Create the record
             PilotCreationDto newPilot = PilotCreationDto.builder()

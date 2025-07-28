@@ -1,7 +1,6 @@
 package gr.atc.t4m.dto;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
-import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import gr.atc.t4m.dto.operations.UserCreationDto;
 import gr.atc.t4m.validation.ValidPassword;
@@ -17,12 +16,12 @@ import org.keycloak.representations.idm.UserRepresentation;
 
 import java.util.HashMap;
 import java.util.List;
+import java.util.Optional;
 
 @Data
 @Builder
 @AllArgsConstructor
 @NoArgsConstructor
-@JsonInclude(JsonInclude.Include.NON_NULL)
 public class UserDto {
     private static final String PILOT_CODE = "pilot_code";
     private static final String PILOT_ROLE = "pilot_role";
@@ -31,6 +30,7 @@ public class UserDto {
     private static final String RESET_TOKEN = "reset_token";
     private static final String ACTIVATION_EXPIRY = "activation_expiry";
     private static final String SUPER_ADMIN_PILOT = "ALL";
+    private static final String REMOVE_COMMAND = "REMOVE_PILOT";
 
     @JsonProperty("userId")
     private String userId;
@@ -205,13 +205,19 @@ public class UserDto {
             keycloakUser.getAttributes().put(PILOT_ROLE, List.of(user.getPilotRole()));
         }
 
-        String finalPilotRole = user.getPilotRole() != null ? user.getPilotRole() : keycloakUser.getAttributes().get(PILOT_ROLE).getFirst();
-        if (user.getPilotCode() != null) {
+        String finalPilotRole = user.getPilotRole() != null
+                ? user.getPilotRole()
+                : Optional.ofNullable(keycloakUser.getAttributes().get(PILOT_ROLE))
+                .map(List::getFirst)
+                .orElse(null);
+        if (user.getPilotCode() != null && !user.getPilotCode().equalsIgnoreCase(REMOVE_COMMAND)) {
             if (!user.getPilotCode().equalsIgnoreCase(SUPER_ADMIN_PILOT)) {
                 String pilotType = "/" + user.getPilotCode() + "/" + finalPilotRole;
                 keycloakUser.setGroups(List.of("/" + user.getPilotCode(), pilotType));
             }
             keycloakUser.getAttributes().put(PILOT_CODE, List.of(user.getPilotCode()));
+        } else if (user.getPilotCode() != null && user.getPilotCode().equalsIgnoreCase(REMOVE_COMMAND)){
+            keycloakUser.getAttributes().remove(PILOT_CODE);
         }
 
         if (user.getUserRole() != null) {

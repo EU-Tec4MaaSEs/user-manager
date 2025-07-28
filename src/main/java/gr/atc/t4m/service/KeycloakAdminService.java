@@ -1,6 +1,7 @@
 package gr.atc.t4m.service;
 
 import gr.atc.t4m.dto.PilotDto;
+import gr.atc.t4m.dto.UserDto;
 import gr.atc.t4m.dto.UserRoleDto;
 import gr.atc.t4m.dto.operations.PilotCreationDto;
 
@@ -8,6 +9,7 @@ import static gr.atc.t4m.exception.CustomExceptions.*;
 
 import gr.atc.t4m.dto.operations.UserRoleCreationDto;
 import gr.atc.t4m.config.properties.KeycloakProperties;
+import gr.atc.t4m.events.OrganizationDeletionEvent;
 import gr.atc.t4m.service.interfaces.IKeycloakAdminService;
 import jakarta.ws.rs.core.Response;
 import lombok.extern.slf4j.Slf4j;
@@ -16,6 +18,7 @@ import org.keycloak.representations.idm.*;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.context.event.EventListener;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
@@ -27,6 +30,8 @@ import java.util.*;
 public class KeycloakAdminService implements IKeycloakAdminService {
 
     private final Keycloak keycloak;
+
+    private final ApplicationEventPublisher eventPublisher;
 
     private final String realm;
     private final String client;
@@ -40,10 +45,11 @@ public class KeycloakAdminService implements IKeycloakAdminService {
     private String clientId;
     private final boolean shouldInitClientId;
 
-    public KeycloakAdminService(Keycloak keycloak, KeycloakProperties keycloakProperties) {
+    public KeycloakAdminService(Keycloak keycloak, KeycloakProperties keycloakProperties, ApplicationEventPublisher eventPublisher) {
         this.keycloak = keycloak;
         realm = keycloakProperties.realm();
         client = keycloakProperties.clientId();
+        this.eventPublisher = eventPublisher;
         excludedSuperAdminRoles = Optional.ofNullable(keycloakProperties.excludedSuperAdminRoles())
                 .map(s -> Arrays.stream(s.split(","))
                         .map(String::trim)
@@ -229,10 +235,16 @@ public class KeycloakAdminService implements IKeycloakAdminService {
                     .group(groupRepresentation.getId())
                     .remove();
             log.debug("Pilot '{}' deleted successfully", pilot);
+
         } catch (Exception e) {
             log.error("Error deleting pilot: {}", e.getMessage(), e);
             throw new KeycloakException("Error deleting pilot", e);
         }
+
+        // Trigger an event to locate all users with the specified pilot code and remove the pilot code from their attributes
+        OrganizationDeletionEvent appEvent = new OrganizationDeletionEvent(this, pilot);
+        log.debug("Publishing event to unassign pilot code attributes for Users in : {}", pilot);
+        eventPublisher.publishEvent(appEvent);
     }
 
     /**

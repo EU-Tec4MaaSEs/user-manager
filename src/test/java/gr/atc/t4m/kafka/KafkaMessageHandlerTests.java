@@ -259,7 +259,7 @@ class KafkaMessageHandlerTests {
             
             // Then
             verify(keycloakAdminService).createPilot(argThat(pilot ->
-                    pilot.name().equals("TEST PILOT")
+                    pilot.name().equals("TEST-PILOT")
             ));
         }
 
