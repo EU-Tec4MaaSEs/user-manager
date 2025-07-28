@@ -42,11 +42,10 @@ public class JwtAttributesValidatorFilter extends OncePerRequestFilter {
 
             // Extract required fields
             String userRole = JwtUtils.extractUserRole(jwt);
-            String pilotCode = JwtUtils.extractPilotCode(jwt);
             String pilotRole = JwtUtils.extractPilotRole(jwt);
 
             // Validate presence of required claims
-            if ((isEmpty(userRole) || isEmpty(pilotCode) || isEmpty(pilotRole)) && (!jwt.getClaims().containsKey("client_id") && !jwt.getClaims().containsKey("clientName"))){
+            if ((isEmpty(userRole) ||  isEmpty(pilotRole)) && (!jwt.getClaims().containsKey("client_id") && !jwt.getClaims().containsKey("clientName"))){
                 // Headers
                 response.setStatus(HttpStatus.FORBIDDEN.value());
                 response.setContentType("application/json");
