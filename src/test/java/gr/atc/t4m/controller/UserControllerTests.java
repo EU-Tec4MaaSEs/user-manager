@@ -793,25 +793,6 @@ class UserControllerTests {
                     .retrieveUsersByPilotCodeAndUserRole("PILOT1", "ADMIN");
         }
 
-        @Disabled
-        @DisplayName("Retrieve Users by User Role and Organization : Unauthorized")
-        @Test
-        void givenUserRoleAndOrganization_whenRetrieveUsersByUserRoleAndOrganization_thenUnauthorized() throws Exception {
-            // Given
-            String pilotCode = "pilot1";
-            String userRole = "admin";
-
-            // When & Then
-            mockMvc.perform(get("/api/users/pilots/{pilotCode}/roles/{userRole}", pilotCode, userRole)
-                    .with(jwt())
-                    .contentType(MediaType.APPLICATION_JSON))
-                    .andExpect(status().isUnauthorized());
-
-            // Verify service was never called
-            verify(userManagerService, never()).retrieveUsersByPilotCodeAndUserRole(anyString(), anyString());
-        }
-
-        @Disabled
         @DisplayName("Retrieve Users by User Role and Organization : Forbidden")
         @Test
         @WithMockUser(roles = "USER")

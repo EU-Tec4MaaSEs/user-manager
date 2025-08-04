@@ -238,6 +238,34 @@ class AdminControllerTests {
                     .andExpect(jsonPath("$.message", is("Pilot updated successfully")));
         }
 
+        @DisplayName("Update Pilot for Super Admin: Bad Request / Default pilot can not be updated")
+        @Test
+        void givenValidSuperAdminJwtAndDefaultPilot_whenUpdatePilot_thenReturnBadRequest() throws Exception {
+            // Given
+            String pilotName = "DEFAULT";
+            PilotDto pilotUpdateData = PilotDto.builder()
+                    .name(pilotName)
+                    .globalName("Updated Test Pilot")
+                    .verifiableCredential("https://updated.example.com/credential")
+                    .dataSpaceConnectorUrl("https://updated.example.com/dsc")
+                    .build();
+
+            // Mock JWT authentication
+            JwtAuthenticationToken jwtAuthenticationToken = new JwtAuthenticationToken(superAdminJwt,
+                    List.of(new SimpleGrantedAuthority("ROLE_SUPER_ADMIN")));
+            SecurityContextHolder.getContext().setAuthentication(jwtAuthenticationToken);
+
+            // When
+            ResultActions response = mockMvc.perform(MockMvcRequestBuilders.put("/api/admin/pilots/{pilotName}", pilotName)
+                    .with(csrf())
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(objectMapper.writeValueAsString(pilotUpdateData)));
+
+            // Then
+            response.andExpect(status().isBadRequest())
+                    .andExpect(jsonPath("$.success", is(false)));
+        }
+
         @DisplayName("Update Pilot by Admin of same pilot: Success")
         @Test
         void givenValidAdminJwtAndSamePilotData_whenUpdatePilot_thenReturnSuccess() throws Exception {
@@ -352,6 +380,27 @@ class AdminControllerTests {
             response.andExpect(status().isOk())
                     .andExpect(jsonPath("$.success", is(true)))
                     .andExpect(jsonPath("$.message", is("Pilot deleted successfully")));
+        }
+
+        @DisplayName("Delete Pilot by Super Admin: Bad request / Default Pilot can not be deleted")
+        @Test
+        void givenValidSuperAdminJwtAndDefaultPilot_whenDeletePilot_thenReturnError() throws Exception {
+            // Given
+            String pilotName = "DEFAULT";
+
+            // Mock JWT authentication
+            JwtAuthenticationToken jwtAuthenticationToken = new JwtAuthenticationToken(superAdminJwt,
+                    List.of(new SimpleGrantedAuthority("ROLE_SUPER_ADMIN")));
+            SecurityContextHolder.getContext().setAuthentication(jwtAuthenticationToken);
+
+            // When
+            ResultActions response = mockMvc.perform(MockMvcRequestBuilders.delete("/api/admin/pilots/{pilotName}", pilotName)
+                    .with(csrf())
+                    .contentType(MediaType.APPLICATION_JSON));
+
+            // Then
+            response.andExpect(status().isBadRequest())
+                    .andExpect(jsonPath("$.success", is(false)));
         }
 
         @DisplayName("Delete Pilot by Admin: Forbidden")

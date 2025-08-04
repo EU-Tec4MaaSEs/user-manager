@@ -59,8 +59,8 @@ class AppEventListenerTests {
         
         List<UserDto> updatedUsers = userCaptor.getAllValues();
         assertThat(updatedUsers).hasSize(2);
-        assertThat(updatedUsers.get(0).getPilotCode()).isEqualTo("REMOVE_PILOT");
-        assertThat(updatedUsers.get(1).getPilotCode()).isEqualTo("REMOVE_PILOT");
+        assertThat(updatedUsers.get(0).getPilotCode()).isEqualTo("DEFAULT");
+        assertThat(updatedUsers.get(1).getPilotCode()).isEqualTo("DEFAULT");
         
         // Verify user2 was not updated (different pilot)
         assertThat(user2.getPilotCode()).isEqualTo("OTHER_PILOT");
@@ -103,7 +103,7 @@ class AppEventListenerTests {
         verify(userManagementService, times(1)).updateUser(userCaptor.capture());
         
         UserDto updatedUser = userCaptor.getValue();
-        assertThat(updatedUser.getPilotCode()).isEqualTo("REMOVE_PILOT");
+        assertThat(updatedUser.getPilotCode()).isEqualTo("DEFAULT");
         assertThat(updatedUser.getUsername()).isEqualTo("user2");
     }
 

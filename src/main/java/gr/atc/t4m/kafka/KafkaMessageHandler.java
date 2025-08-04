@@ -24,6 +24,7 @@ import java.util.Optional;
 @Validated
 public class KafkaMessageHandler {
 
+    private static final String DEFAULT_PILOT = "DEFAULT";
     private final IKeycloakAdminService keycloakAdminService;
     private final IUserManagementService userManagementService;
     private final IEmailService emailService;
@@ -68,7 +69,7 @@ public class KafkaMessageHandler {
             existingUser = userManagementService.retrieveUserById(event.data().userId());
 
             // Check whether user already has an organization assigned
-            if (existingUser.getPilotCode() != null && !existingUser.getPilotCode().isEmpty()) {
+            if (existingUser.getPilotCode() != null && !existingUser.getPilotCode().equalsIgnoreCase(DEFAULT_PILOT)) {
                 log.warn("User with ID: {} already has an organization assigned: {}", existingUser.getUserId(), existingUser.getPilotCode());
                 return;
             }
@@ -84,7 +85,7 @@ public class KafkaMessageHandler {
         // Send email after successful operation
         String fullName = buildFullName(existingUser.getFirstName(), existingUser.getLastName())
                 .orElse("User");
-        emailService.sendOrganizationRegistrationEmail(fullName, event.data().email(), globalName);
+        emailService.sendOrganizationRegistrationEmail(fullName, existingUser.getEmail(), globalName);
     }
 
    /*

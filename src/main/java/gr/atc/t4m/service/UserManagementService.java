@@ -47,7 +47,6 @@ public class UserManagementService implements IUserManagementService {
     private static final String RESET_TOKEN = "reset_token";
     private static final String GLOBAL_PILOT_CODE = "ALL";
     private static final String SUPER_ADMIN_ROLE = "SUPER_ADMIN";
-    private static final String REMOVE_COMMAND = "REMOVE_PILOT";
 
     private final String realm;
     private final String serverUrl;
@@ -212,7 +211,7 @@ public class UserManagementService implements IUserManagementService {
 
             userResource.update(UserDto.toUserRepresentation(user, existingUser));
 
-            if (user.getPilotCode() != null && !user.getPilotCode().equalsIgnoreCase(REMOVE_COMMAND)) {
+            if (user.getPilotCode() != null) {
                 String currentPilotRole = user.getPilotRole() != null ? user.getPilotRole() : existingUser.getAttributes().get("pilot_role").getFirst();
                 assignGroupsToUser(user.getPilotCode(), currentPilotRole, userResource);
             }
@@ -267,7 +266,7 @@ public class UserManagementService implements IUserManagementService {
         }
 
         // Check valid pilot code but omit this check for Global Code of Super Admin
-        if (user.getPilotCode() != null && !user.getPilotCode().equals(GLOBAL_PILOT_CODE) && !user.getPilotCode().equalsIgnoreCase(REMOVE_COMMAND)) {
+        if (user.getPilotCode() != null && !user.getPilotCode().equals(GLOBAL_PILOT_CODE)) {
             boolean validPilotCode = adminService.retrieveAllPilotCodes()
                     .contains(user.getPilotCode().trim().toUpperCase());
             if (!validPilotCode) return false;
