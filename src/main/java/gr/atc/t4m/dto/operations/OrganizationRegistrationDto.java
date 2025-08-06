@@ -16,9 +16,6 @@ public record OrganizationRegistrationDto(
         String name,
 
         @Email(message = "Email should be valid")
-        @NotBlank(message = "Email cannot be empty")
-        String email,
-
         @NotBlank(message = "Contact cannot be empty")
         String contact,
 

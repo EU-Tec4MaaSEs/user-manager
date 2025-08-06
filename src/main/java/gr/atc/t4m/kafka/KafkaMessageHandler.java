@@ -39,10 +39,9 @@ public class KafkaMessageHandler {
      * Kafka consumer method to receive a JSON Event message - From Kafka Producers
      *
      * @param event: Event occurred in T4M
-     * @param topic: The topic from which the message was received
      */
     @KafkaListener(topics = "#{'${spring.kafka.consumer.topics}'.split(',')}", groupId = "${spring.kafka.consumer.group-id}", errorHandler = "kafkaErrorHandler")
-    public void consume(@Valid EventDto event, @Header(KafkaHeaders.RECEIVED_TOPIC) String topic) {
+    public void consume(@Valid EventDto event) {
         String globalName = event.data().name();
         String pilotName = String.join("-", globalName.trim().toUpperCase().split("\\s+"));
         try {
