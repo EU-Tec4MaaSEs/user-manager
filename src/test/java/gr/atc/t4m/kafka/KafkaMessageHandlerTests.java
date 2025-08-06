@@ -42,16 +42,14 @@ class KafkaMessageHandlerTests {
 
     private EventDto validEvent;
     private UserDto existingUser;
-    private OrganizationRegistrationDto organizationData;
 
     @BeforeEach
     void setUp() {
         // Given - Setup test data
-        organizationData = new OrganizationRegistrationDto(
+        OrganizationRegistrationDto organizationData = new OrganizationRegistrationDto(
                 "pilot123",
                 "test_pilot",
                 "test@example.com",
-                "userId123",
                 Set.of(T4mRole.PROVIDER),
                 "https://example.com/dsc",
                 "base64-encoded-credential",
@@ -88,7 +86,7 @@ class KafkaMessageHandlerTests {
             when(userManagementService.retrieveUserById("userId123")).thenReturn(existingUser);
             
             // When
-            kafkaMessageHandler.consume(validEvent, "organization-registration-topic");
+            kafkaMessageHandler.consume(validEvent);
             
             // Then
             verify(keycloakAdminService).createPilot(argThat(pilot ->
@@ -116,7 +114,7 @@ class KafkaMessageHandlerTests {
             when(userManagementService.retrieveUserById("userId123")).thenReturn(existingUser);
             
             // When
-            kafkaMessageHandler.consume(validEvent, "organization-registration-topic");
+            kafkaMessageHandler.consume(validEvent);
             
             // Then
             verify(emailService).sendOrganizationRegistrationEmail("John", "test@example.com", "test_pilot");
@@ -130,7 +128,7 @@ class KafkaMessageHandlerTests {
             when(userManagementService.retrieveUserById("userId123")).thenReturn(existingUser);
             
             // When
-            kafkaMessageHandler.consume(validEvent, "organization-registration-topic");
+            kafkaMessageHandler.consume(validEvent);
             
             // Then
             verify(emailService).sendOrganizationRegistrationEmail("Doe", "test@example.com", "test_pilot");
@@ -145,7 +143,7 @@ class KafkaMessageHandlerTests {
             when(userManagementService.retrieveUserById("userId123")).thenReturn(existingUser);
             
             // When
-            kafkaMessageHandler.consume(validEvent, "organization-registration-topic");
+            kafkaMessageHandler.consume(validEvent);
             
             // Then
             verify(emailService).sendOrganizationRegistrationEmail("User", "test@example.com", "test_pilot");
@@ -164,7 +162,7 @@ class KafkaMessageHandlerTests {
                     .thenThrow(new ResourceNotPresentException("User not found"));
             
             // When
-            kafkaMessageHandler.consume(validEvent, "organization-registration-topic");
+            kafkaMessageHandler.consume(validEvent);
             
             // Then
             verify(keycloakAdminService).createPilot(any(PilotCreationDto.class));
@@ -181,7 +179,7 @@ class KafkaMessageHandlerTests {
             when(userManagementService.retrieveUserById("userId123")).thenReturn(existingUser);
             
             // When
-            kafkaMessageHandler.consume(validEvent, "organization-registration-topic");
+            kafkaMessageHandler.consume(validEvent);
             
             // Then
             verify(keycloakAdminService).createPilot(any(PilotCreationDto.class));
@@ -203,7 +201,6 @@ class KafkaMessageHandlerTests {
                     "pilot123",
                     "test_pilot_lowercase",
                     "test@example.com",
-                    "userId123",
                     Set.of(T4mRole.CONSUMER),
                     "https://example.com/dsc",
                     "base64-encoded-credential",
@@ -221,7 +218,7 @@ class KafkaMessageHandlerTests {
             when(userManagementService.retrieveUserById("userId123")).thenReturn(existingUser);
             
             // When
-            kafkaMessageHandler.consume(lowerCaseEvent, "organization-registration-topic");
+            kafkaMessageHandler.consume(lowerCaseEvent);
             
             // Then
             verify(keycloakAdminService).createPilot(argThat(pilot ->
@@ -234,10 +231,9 @@ class KafkaMessageHandlerTests {
         void givenPilotNameWithSpaces_whenConsumeMessage_thenTrimAndFormat() {
             // Given
             OrganizationRegistrationDto spacedData = new OrganizationRegistrationDto(
-                    "pilot123",                                     // id
+                    "pilot123",                                  // id
                     " test pilot ",                                 // name
-                    "test@example.com",                             // email
-                    "userId123",                                    // contact (userId)
+                    "test@test.com",                                // Email
                     Set.of(T4mRole.PROVIDER),                       // role
                     "https://example.com/dsc",                      // dataSpaceConnectorUrl
                     "https://example.com/credential",               // verifiableCredential
@@ -255,7 +251,7 @@ class KafkaMessageHandlerTests {
             when(userManagementService.retrieveUserById("userId123")).thenReturn(existingUser);
             
             // When
-            kafkaMessageHandler.consume(spacedEvent, "organization-registration-topic");
+            kafkaMessageHandler.consume(spacedEvent);
             
             // Then
             verify(keycloakAdminService).createPilot(argThat(pilot ->
@@ -270,7 +266,7 @@ class KafkaMessageHandlerTests {
             when(userManagementService.retrieveUserById("userId123")).thenReturn(existingUser);
             
             // When
-            kafkaMessageHandler.consume(validEvent, "organization-registration-topic");
+            kafkaMessageHandler.consume(validEvent);
             
             // Then
             verify(keycloakAdminService).createPilot(argThat(pilot ->
@@ -290,7 +286,7 @@ class KafkaMessageHandlerTests {
             when(userManagementService.retrieveUserById("userId123")).thenReturn(existingUser);
             
             // When
-            kafkaMessageHandler.consume(validEvent, "organization-registration-topic");
+            kafkaMessageHandler.consume(validEvent);
             
             // Then - Verify order of operations
             var inOrder = inOrder(keycloakAdminService, userManagementService, emailService);

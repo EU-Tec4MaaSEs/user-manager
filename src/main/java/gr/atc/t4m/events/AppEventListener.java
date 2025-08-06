@@ -21,7 +21,7 @@ public class AppEventListener {
 
     private final IUserManagementService userManagementService;
 
-    private static final String REMOVE_COMMAND = "REMOVE_PILOT";
+    private static final String DEFAULT_ORGANIZATION = "DEFAULT";
 
     @EventListener
     @Async(value = "taskExecutor")
@@ -38,7 +38,7 @@ public class AppEventListener {
         pilotUsers.stream()
                 .filter(user -> pilot.equalsIgnoreCase(user.getPilotCode()))
                 .forEach(user -> {
-                    user.setPilotCode(REMOVE_COMMAND);
+                    user.setPilotCode(DEFAULT_ORGANIZATION);
                     userManagementService.updateUser(user);
                     log.debug("Unassigned pilot {} from user {} with ID: {}", pilot, user.getUsername(), user.getUserId());
                 });

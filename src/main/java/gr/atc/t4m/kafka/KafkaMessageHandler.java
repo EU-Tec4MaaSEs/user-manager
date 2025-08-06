@@ -24,6 +24,7 @@ import java.util.Optional;
 @Validated
 public class KafkaMessageHandler {
 
+    private static final String DEFAULT_PILOT = "DEFAULT";
     private final IKeycloakAdminService keycloakAdminService;
     private final IUserManagementService userManagementService;
     private final IEmailService emailService;
@@ -38,10 +39,9 @@ public class KafkaMessageHandler {
      * Kafka consumer method to receive a JSON Event message - From Kafka Producers
      *
      * @param event: Event occurred in T4M
-     * @param topic: The topic from which the message was received
      */
     @KafkaListener(topics = "#{'${spring.kafka.consumer.topics}'.split(',')}", groupId = "${spring.kafka.consumer.group-id}", errorHandler = "kafkaErrorHandler")
-    public void consume(@Valid EventDto event, @Header(KafkaHeaders.RECEIVED_TOPIC) String topic) {
+    public void consume(@Valid EventDto event) {
         String globalName = event.data().name();
         String pilotName = String.join("-", globalName.trim().toUpperCase().split("\\s+"));
         try {
@@ -68,7 +68,7 @@ public class KafkaMessageHandler {
             existingUser = userManagementService.retrieveUserById(event.data().userId());
 
             // Check whether user already has an organization assigned
-            if (existingUser.getPilotCode() != null && !existingUser.getPilotCode().isEmpty()) {
+            if (existingUser.getPilotCode() != null && !existingUser.getPilotCode().equalsIgnoreCase(DEFAULT_PILOT)) {
                 log.warn("User with ID: {} already has an organization assigned: {}", existingUser.getUserId(), existingUser.getPilotCode());
                 return;
             }
@@ -84,7 +84,7 @@ public class KafkaMessageHandler {
         // Send email after successful operation
         String fullName = buildFullName(existingUser.getFirstName(), existingUser.getLastName())
                 .orElse("User");
-        emailService.sendOrganizationRegistrationEmail(fullName, event.data().email(), globalName);
+        emailService.sendOrganizationRegistrationEmail(fullName, existingUser.getEmail(), globalName);
     }
 
    /*

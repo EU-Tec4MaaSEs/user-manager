@@ -6,7 +6,7 @@ import java.util.Set;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import gr.atc.t4m.enums.T4mRole;
 import io.swagger.v3.oas.annotations.media.Schema;
-import jakarta.validation.constraints.NotEmpty;
+import jakarta.validation.constraints.NotBlank;
 import lombok.Builder;
 
 @Builder
@@ -16,7 +16,7 @@ public record PilotCreationDto(
                 name = "name",
                 type = "String",
                 requiredMode = Schema.RequiredMode.REQUIRED)
-        @NotEmpty(message = "Pilot name cannot be empty")
+        @NotBlank(message = "Pilot name cannot be empty")
         String name,
 
         @Schema(description = "Global name of the Pilot (Auto-generated based on Pilot Roles)",

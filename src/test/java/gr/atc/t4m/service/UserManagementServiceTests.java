@@ -372,13 +372,13 @@ class UserManagementServiceTests {
                     spyService.updateUser(userDto));
         }
 
-        @DisplayName("Update User : With REMOVE_PILOT Code")
+        @DisplayName("Update User : With DEFAULT Code")
         @Test
         void givenUserWithRemovePilotCode_whenUpdateUser_thenNoGroupsAssigned() {
             // Given
             UserDto userDto = new UserDto();
             userDto.setUserId(TEST_USER_ID);
-            userDto.setPilotCode("REMOVE_PILOT");
+            userDto.setPilotCode("DEFAULT");
             userDto.setPilotRole(TEST_PILOT_ROLE);
             userDto.setEmail(TEST_EMAIL);
 
@@ -399,8 +399,7 @@ class UserManagementServiceTests {
             // Then
             verify(usersResource).get(TEST_USER_ID);
             verify(userResource).update(any(UserRepresentation.class));
-            // Verify that assignGroupsToUser is NOT called when pilot code is REMOVE_PILOT
-            verify(spyService, never()).assignGroupsToUser(anyString(), anyString(), any(UserResource.class));
+            verify(spyService).assignGroupsToUser(anyString(), anyString(), any(UserResource.class));
         }
 
         @DisplayName("Update User : User Not Found")

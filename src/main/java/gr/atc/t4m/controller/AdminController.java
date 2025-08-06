@@ -37,6 +37,7 @@ public class AdminController {
 
     private static final String SUPER_ADMIN_ROLE = "SUPER_ADMIN";
     private static final String GLOBAL_PILOT_CODE = "ALL";
+    private static final String DEFAULT_PILOT = "DEFAULT";
 
     public AdminController(IKeycloakAdminService adminService, IUserManagementService userManagementService) {
         this.adminService = adminService;
@@ -138,6 +139,9 @@ public class AdminController {
             description = "Name of the Pilot",
             example = "Test_Pilot",
             required = true) @PathVariable String pilotName) {
+        if (pilotName.equalsIgnoreCase(DEFAULT_PILOT))
+            return new ResponseEntity<>(BaseAppResponse.error("Default organization can not be deleted"), HttpStatus.BAD_REQUEST);
+
         // Delete Pilot in Keycloak
         adminService.deletePilotByName(pilotName.trim().toUpperCase());
         return new ResponseEntity<>(BaseAppResponse.success(null, "Pilot deleted successfully"), HttpStatus.OK);
@@ -165,6 +169,8 @@ public class AdminController {
                                                               @Parameter(name = "pilotData",
                                                                       description = "Updated pilot information - Not all fields required",
                                                                       required = true) @Valid @RequestBody PilotDto pilotData) {
+        if (pilotName.equalsIgnoreCase(DEFAULT_PILOT))
+            return new ResponseEntity<>(BaseAppResponse.error("Default organization can not be updated"), HttpStatus.BAD_REQUEST);
 
         String pilotRole = JwtUtils.extractPilotRole(jwt);
 

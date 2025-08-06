@@ -30,7 +30,6 @@ public class UserDto {
     private static final String RESET_TOKEN = "reset_token";
     private static final String ACTIVATION_EXPIRY = "activation_expiry";
     private static final String SUPER_ADMIN_PILOT = "ALL";
-    private static final String REMOVE_COMMAND = "REMOVE_PILOT";
 
     @JsonProperty("userId")
     private String userId;
@@ -210,14 +209,12 @@ public class UserDto {
                 : Optional.ofNullable(keycloakUser.getAttributes().get(PILOT_ROLE))
                 .map(List::getFirst)
                 .orElse(null);
-        if (user.getPilotCode() != null && !user.getPilotCode().equalsIgnoreCase(REMOVE_COMMAND)) {
+        if (user.getPilotCode() != null) {
             if (!user.getPilotCode().equalsIgnoreCase(SUPER_ADMIN_PILOT)) {
                 String pilotType = "/" + user.getPilotCode() + "/" + finalPilotRole;
                 keycloakUser.setGroups(List.of("/" + user.getPilotCode(), pilotType));
             }
             keycloakUser.getAttributes().put(PILOT_CODE, List.of(user.getPilotCode()));
-        } else if (user.getPilotCode() != null && user.getPilotCode().equalsIgnoreCase(REMOVE_COMMAND)){
-            keycloakUser.getAttributes().remove(PILOT_CODE);
         }
 
         if (user.getUserRole() != null) {
