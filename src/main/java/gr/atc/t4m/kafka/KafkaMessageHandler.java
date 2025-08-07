@@ -10,8 +10,6 @@ import jakarta.validation.Valid;
 import jakarta.validation.ValidationException;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.kafka.annotation.KafkaListener;
-import org.springframework.kafka.support.KafkaHeaders;
-import org.springframework.messaging.handler.annotation.Header;
 import org.springframework.stereotype.Service;
 import gr.atc.t4m.exception.CustomExceptions.*;
 import org.springframework.validation.annotation.Validated;
