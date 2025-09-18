@@ -1,8 +1,7 @@
 package gr.atc.t4m.events;
 
-import org.springframework.context.ApplicationEvent;
-
 import lombok.Getter;
+import org.springframework.context.ApplicationEvent;
 
 @Getter
 public class OrganizationDeletionEvent extends ApplicationEvent {

@@ -1,8 +1,8 @@
 package gr.atc.t4m.config;
 
-import java.util.HashMap;
-import java.util.Map;
-
+import com.fasterxml.jackson.databind.ObjectMapper;
+import gr.atc.t4m.config.properties.KafkaProperties;
+import gr.atc.t4m.dto.EventDto;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.common.serialization.StringDeserializer;
 import org.springframework.context.annotation.Bean;
@@ -13,10 +13,8 @@ import org.springframework.kafka.core.DefaultKafkaConsumerFactory;
 import org.springframework.kafka.support.serializer.ErrorHandlingDeserializer;
 import org.springframework.kafka.support.serializer.JsonDeserializer;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-
-import gr.atc.t4m.config.properties.KafkaProperties;
-import gr.atc.t4m.dto.EventDto;
+import java.util.HashMap;
+import java.util.Map;
 
 @Configuration
 public class KafkaConfig {
@@ -44,6 +42,7 @@ public class KafkaConfig {
         JsonDeserializer<EventDto> jsonDeserializer = new JsonDeserializer<>(EventDto.class, objectMapper);
         jsonDeserializer.addTrustedPackages("*");
         jsonDeserializer.setUseTypeHeaders(false);
+
 
         return new DefaultKafkaConsumerFactory<>(props,
                 new ErrorHandlingDeserializer<>(new StringDeserializer()),
