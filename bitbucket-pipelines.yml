@@ -9,7 +9,7 @@ definitions:
           - sonar
         script:
           - mvn clean verify -Pcoverage
-          - mvn sonar:sonar -Dsonar.host.url=${SONAR_HOST_URL} -Dsonar.token=${SONAR_TOKEN} -Dsonar.projectKey=atc-code_ilab-tec4maases-user-manager_AZZm9wmkhPrqIBhKHocm -Dsonar.projectName='iLab-Tec4MaaSEs-user-manager'
+          - mvn sonar:sonar -Dsonar.host.url=${SONAR_HOST_URL_V2025} -Dsonar.token=${SONAR_PROJECT_ANALYSIS_TOKEN} -Dsonar.projectKey=atc-code_ilab-tec4maases-user-manager_AZZm9wmkhPrqIBhKHocm -Dsonar.projectName='iLab-Tec4MaaSEs-user-manager'
         runs-on:
           - self.hosted
           - ilab
