@@ -32,6 +32,9 @@ build/
 ### VS Code ###
 .vscode/
 /src/main/resources/application-local.properties
+/src/main/resources/certs/kafka-ca.crt
+/src/main/resources/certs/notes.txt
+kafka-truststore.jks
 .env
 /keycloak
 docker-compose.yml

@@ -7,8 +7,10 @@ import java.util.List;
 
 @ConfigurationProperties(prefix = "spring.kafka")
 public record KafkaProperties(
+        String connectionType,
         String bootstrapServers,
-        Consumer consumer
+        Consumer consumer,
+        External external
 ) {
     public record Consumer(
             String groupId,
@@ -41,5 +43,11 @@ public record KafkaProperties(
     public record SchemaRegistry(
             String url
     ) {}
+
+    public record External (
+        String username,
+        String password,
+        String caCertPath
+    ){}
 
 }
