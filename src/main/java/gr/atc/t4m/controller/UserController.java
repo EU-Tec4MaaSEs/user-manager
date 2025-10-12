@@ -505,6 +505,7 @@ public class UserController {
                 .pilotRole(JwtUtils.extractPilotRole(jwt))
                 .userRole(JwtUtils.extractUserRole(jwt))
                 .pilotCode(JwtUtils.extractPilotCode(jwt))
+                .organizationId(JwtUtils.extractOrganizationIdOfUser(jwt))
                 .build();
 
         return new ResponseEntity<>(BaseAppResponse.success(currentUser, "User information from given JWT Token retrieved successfully"), HttpStatus.OK);

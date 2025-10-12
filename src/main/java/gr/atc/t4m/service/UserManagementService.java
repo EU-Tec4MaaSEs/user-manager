@@ -1,5 +1,6 @@
 package gr.atc.t4m.service;
 
+import gr.atc.t4m.dto.PilotDto;
 import gr.atc.t4m.dto.UserDto;
 import gr.atc.t4m.dto.UserRoleDto;
 import gr.atc.t4m.dto.operations.PasswordsDto;
@@ -46,6 +47,7 @@ public class UserManagementService implements IUserManagementService {
     private static final String ACTIVATION_EXPIRY = "activation_expiry";
     private static final String RESET_TOKEN = "reset_token";
     private static final String GLOBAL_PILOT_CODE = "ALL";
+    private static final String DEFAULT_PILOT = "DEFAULT";
     private static final String SUPER_ADMIN_ROLE = "SUPER_ADMIN";
 
     private final String realm;
@@ -130,6 +132,12 @@ public class UserManagementService implements IUserManagementService {
             throw new ResourceAlreadyExistsException("User with given email already exists in Keycloak");
 
         UserDto user = UserDto.fromUserCreationDto(userData);
+        // Check if Pilot Code is not the Default or the Global, locate the corresponding Organization ID and store it as attribute of User
+        if (!DEFAULT_PILOT.equalsIgnoreCase(user.getPilotCode()) && !GLOBAL_PILOT_CODE.equalsIgnoreCase(user.getPilotCode())) {
+            user.setOrganizationId(PilotDto.fromGroupRepresentation(
+                            adminService.retrieveGroupRepresentationByName(user.getPilotCode())).getOrganizationId());
+        }
+
         if (!hasValidKeycloakAttributes(user))
             throw new ValidationException("Some of the input data are not present in Keycloak (Pilot Role, Pilot Code, User Role)");
 

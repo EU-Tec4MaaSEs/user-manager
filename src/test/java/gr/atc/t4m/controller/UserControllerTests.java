@@ -102,6 +102,7 @@ class UserControllerTests {
                             .userRole("TEST")
                             .username("TestUser")
                             .password("TestPass123@")
+                            .organizationId("mockId")
                             .build();
 
         listTestUsers = List.of(testUser);
@@ -852,6 +853,7 @@ class UserControllerTests {
             String pilotRole = "PILOT";
             String userRole = "USER";
             String pilotCode = "TEST_PILOT";
+            String organizationId = "TEST_ORGANIZATION_ID";
 
             // Create a mock JWT with claims
             Jwt mockJwt = createMockJwtToken(userRole, pilotRole, pilotCode);
@@ -876,7 +878,8 @@ class UserControllerTests {
                     .andExpect(jsonPath("$.data.lastName", Matchers.is("Test")))
                     .andExpect(jsonPath("$.data.pilotRole", Matchers.is(pilotRole)))
                     .andExpect(jsonPath("$.data.userRole", Matchers.is(userRole)))
-                    .andExpect(jsonPath("$.data.pilotCode", Matchers.is(pilotCode)));
+                    .andExpect(jsonPath("$.data.pilotCode", Matchers.is(pilotCode)))
+                    .andExpect(jsonPath("$.data.organizationId", Matchers.is(organizationId)));
         }
     }
 
@@ -893,6 +896,7 @@ class UserControllerTests {
         claims.put("pilot_code", pilotCode);
         claims.put("pilot_role", pilotRole);
         claims.put("user_role", userRole);
+        claims.put("organization_id", "TEST_ORGANIZATION_ID");
         claims.put("family_name", "Test");
         claims.put("given_name", "Test");
         claims.put("email", "test@test.com");

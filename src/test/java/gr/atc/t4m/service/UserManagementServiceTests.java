@@ -228,9 +228,17 @@ class UserManagementServiceTests {
             UserCreationDto userCreationDto = createTestUserCreationDto();
             String activationToken = "test-token";
 
+            GroupRepresentation mockGroupRepresentation = new GroupRepresentation();
+            mockGroupRepresentation.setId("test-group-id");
+            mockGroupRepresentation.setName(TEST_PILOT_CODE);
+            Map<String, List<String>> attributes = new HashMap<>();
+            attributes.put("ORGANIZATION_ID", List.of("test-org-123"));
+            mockGroupRepresentation.setAttributes(attributes);
+
             UserManagementService spyService = spy(userManagementService);
             doReturn(true).when(spyService).hasValidKeycloakAttributes(any(UserDto.class));
             doReturn(null).when(spyService).retrieveUserRepresentationByEmail(anyString());
+            when(adminService.retrieveGroupRepresentationByName(TEST_PILOT_CODE)).thenReturn(mockGroupRepresentation);
 
             when(response.getStatus()).thenReturn(201);
             when(response.getHeaderString("Location")).thenReturn("http://keycloak/admin/realms/test/users/" + TEST_USER_ID);
@@ -242,6 +250,7 @@ class UserManagementServiceTests {
             // Then
             assertEquals(TEST_USER_ID, result);
             verify(spyService).retrieveUserRepresentationByEmail(TEST_EMAIL);
+            verify(adminService).retrieveGroupRepresentationByName(TEST_PILOT_CODE);
             verify(usersResource).create(any(UserRepresentation.class));
         }
 
@@ -276,9 +285,17 @@ class UserManagementServiceTests {
             UserCreationDto userCreationDto = createTestUserCreationDto();
             String activationToken = "test-token";
 
+            GroupRepresentation mockGroupRepresentation = new GroupRepresentation();
+            mockGroupRepresentation.setId("test-group-id");
+            mockGroupRepresentation.setName(TEST_PILOT_CODE);
+            Map<String, List<String>> attributes = new HashMap<>();
+            attributes.put("ORGANIZATION_ID", List.of("test-org-123"));
+            mockGroupRepresentation.setAttributes(attributes);
+
             UserManagementService spyService = spy(userManagementService);
             doReturn(false).when(spyService).hasValidKeycloakAttributes(any(UserDto.class));
             doReturn(null).when(spyService).retrieveUserRepresentationByEmail(TEST_EMAIL);
+            when(adminService.retrieveGroupRepresentationByName(TEST_PILOT_CODE)).thenReturn(mockGroupRepresentation);
 
             // When & Then
             ValidationException exception = assertThrows(
@@ -297,11 +314,18 @@ class UserManagementServiceTests {
             UserCreationDto userCreationDto = createTestUserCreationDto();
             String activationToken = "test-token";
 
+            GroupRepresentation mockGroupRepresentation = new GroupRepresentation();
+            mockGroupRepresentation.setId("test-group-id");
+            mockGroupRepresentation.setName(TEST_PILOT_CODE);
+            Map<String, List<String>> attributes = new HashMap<>();
+            attributes.put("ORGANIZATION_ID", List.of("test-org-123"));
+            mockGroupRepresentation.setAttributes(attributes);
+
             UserManagementService spyService = spy(userManagementService);
             doReturn(true).when(spyService).hasValidKeycloakAttributes(any(UserDto.class));
             doReturn(null).when(spyService).retrieveUserRepresentationByEmail(anyString());
+            when(adminService.retrieveGroupRepresentationByName(TEST_PILOT_CODE)).thenReturn(mockGroupRepresentation);
 
-            // Mock the exception
             ReflectionTestUtils.setField(spyService, "realm", "");
             when(keycloak.realm(anyString())).thenThrow(new RuntimeException("Keycloak connection error"));
 
@@ -310,6 +334,7 @@ class UserManagementServiceTests {
                 userDto.setActivationToken(activationToken);
                 userDto.setTokenFlagRaised(false);
                 userDto.setActivationExpiry(String.valueOf(System.currentTimeMillis() + 86400000));
+                userDto.setPilotCode("TEST_PILOT");
 
                 mockedUserDto.when(() -> UserDto.fromUserCreationDto(userCreationDto)).thenReturn(userDto);
                 mockedUserDto.when(() -> UserDto.toUserRepresentation(any(UserDto.class), isNull()))
