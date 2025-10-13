@@ -666,7 +666,7 @@ class AdminControllerTests {
             SecurityContextHolder.getContext().setAuthentication(jwtAuthenticationToken);
 
             // When
-            ResultActions response = mockMvc.perform(MockMvcRequestBuilders.post("/api/admin/cache/reset")
+            ResultActions response = mockMvc.perform(MockMvcRequestBuilders.delete("/api/admin/cache/reset")
                     .with(csrf())
                     .contentType(MediaType.APPLICATION_JSON));
 
@@ -691,7 +691,7 @@ class AdminControllerTests {
             SecurityContextHolder.getContext().setAuthentication(jwtAuthenticationToken);
 
             // When
-            ResultActions response = mockMvc.perform(MockMvcRequestBuilders.post("/api/admin/cache/reset")
+            ResultActions response = mockMvc.perform(MockMvcRequestBuilders.delete("/api/admin/cache/reset")
                     .with(csrf())
                     .contentType(MediaType.APPLICATION_JSON));
 
@@ -714,7 +714,7 @@ class AdminControllerTests {
             SecurityContextHolder.getContext().setAuthentication(jwtAuthenticationToken);
 
             // When
-            ResultActions response = mockMvc.perform(MockMvcRequestBuilders.post("/api/admin/cache/reset")
+            ResultActions response = mockMvc.perform(MockMvcRequestBuilders.delete("/api/admin/cache/reset")
                     .with(csrf())
                     .contentType(MediaType.APPLICATION_JSON));
 

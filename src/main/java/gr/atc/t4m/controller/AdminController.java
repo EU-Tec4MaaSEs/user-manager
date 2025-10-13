@@ -407,7 +407,7 @@ public class AdminController {
     })
     @PreAuthorize("hasRole('SUPER_ADMIN')")
     @Hidden
-    @PostMapping("/cache/reset")
+    @DeleteMapping("/cache/reset")
     public ResponseEntity<BaseAppResponse<Void>> resetAllCaches() {
         // Get all cache names and clear each cache
         cacheManager.getCacheNames()
