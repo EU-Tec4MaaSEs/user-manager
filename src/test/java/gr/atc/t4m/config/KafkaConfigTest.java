@@ -70,10 +70,7 @@ class KafkaConfigTest {
                     .containsEntry(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, "localhost:9092")
                     .containsEntry(ConsumerConfig.GROUP_ID_CONFIG, "test-group")
                     .containsEntry(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest")
-                    .containsEntry(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, true);
-
-            // Then - Verify no security configuration
-            assertThat(configs)
+                    .containsEntry(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, true)
                     .doesNotContainKeys("security.protocol", "sasl.mechanism", "sasl.jaas.config", "ssl.truststore.type");
         }
 
