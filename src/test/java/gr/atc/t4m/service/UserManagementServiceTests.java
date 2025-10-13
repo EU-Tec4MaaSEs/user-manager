@@ -2,7 +2,6 @@ package gr.atc.t4m.service;
 
 import gr.atc.t4m.config.properties.KeycloakProperties;
 import gr.atc.t4m.dto.UserDto;
-import gr.atc.t4m.dto.UserRoleDto;
 import gr.atc.t4m.dto.operations.PasswordsDto;
 import gr.atc.t4m.dto.operations.UserCreationDto;
 import gr.atc.t4m.service.interfaces.IEmailService;

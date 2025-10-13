@@ -66,16 +66,15 @@ class KafkaConfigTest {
             Map<String, Object> configs = consumerFactory.getConfigurationProperties();
 
             // Then
-            assertThat(configs).containsEntry(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, "localhost:9092");
-            assertThat(configs).containsEntry(ConsumerConfig.GROUP_ID_CONFIG, "test-group");
-            assertThat(configs).containsEntry(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest");
-            assertThat(configs).containsEntry(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, true);
+            assertThat(configs)
+                    .containsEntry(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, "localhost:9092")
+                    .containsEntry(ConsumerConfig.GROUP_ID_CONFIG, "test-group")
+                    .containsEntry(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest")
+                    .containsEntry(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, true);
 
-            // Then
-            assertThat(configs.get("security.protocol")).isNull();
-            assertThat(configs.get("sasl.mechanism")).isNull();
-            assertThat(configs.get("sasl.jaas.config")).isNull();
-            assertThat(configs.get("ssl.truststore.type")).isNull();
+            // Then - Verify no security configuration
+            assertThat(configs)
+                    .doesNotContainKeys("security.protocol", "sasl.mechanism", "sasl.jaas.config", "ssl.truststore.type");
         }
 
         @Test
@@ -86,8 +85,9 @@ class KafkaConfigTest {
             Map<String, Object> configs = consumerFactory.getConfigurationProperties();
 
             // Then
-            assertThat(configs.get(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG)).isNotNull();
-            assertThat(configs.get(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG)).isNotNull();
+            assertThat(configs)
+                    .containsKey(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG)
+                    .containsKey(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG);
         }
     }
 
@@ -113,8 +113,9 @@ class KafkaConfigTest {
             Map<String, Object> configs = consumerFactory.getConfigurationProperties();
 
             // Then
-            assertThat(configs.get("security.protocol")).isEqualTo("SASL_SSL");
-            assertThat(configs.get("sasl.mechanism")).isEqualTo("SCRAM-SHA-512");
+            assertThat(configs)
+                    .containsEntry("security.protocol", "SASL_SSL")
+                    .containsEntry("sasl.mechanism", "SCRAM-SHA-512");
         }
 
         @Test
@@ -126,10 +127,11 @@ class KafkaConfigTest {
             String jaasConfig = (String) configs.get("sasl.jaas.config");
 
             // Then
-            assertThat(jaasConfig).isNotNull();
-            assertThat(jaasConfig).contains("org.apache.kafka.common.security.scram.ScramLoginModule");
-            assertThat(jaasConfig).contains("username=\"test-user\"");
-            assertThat(jaasConfig).contains("password=\"test-password\"");
+            assertThat(jaasConfig)
+                    .isNotNull()
+                    .contains("org.apache.kafka.common.security.scram.ScramLoginModule")
+                    .contains("username=\"test-user\"")
+                    .contains("password=\"test-password\"");
         }
 
         @Test
@@ -140,14 +142,16 @@ class KafkaConfigTest {
             Map<String, Object> configs = consumerFactory.getConfigurationProperties();
 
             // Then
-            assertThat(configs.get("ssl.truststore.type")).isEqualTo("PEM");
-            assertThat(configs.get("ssl.truststore.certificates")).isNotNull();
-            assertThat(configs.get("ssl.endpoint.identification.algorithm")).isEqualTo("");
+            assertThat(configs)
+                    .containsEntry("ssl.truststore.type", "PEM")
+                    .containsEntry("ssl.endpoint.identification.algorithm", "")
+                    .containsKey("ssl.truststore.certificates");
 
             // Then - Verify certificate content is loaded
             String certContent = (String) configs.get("ssl.truststore.certificates");
-            assertThat(certContent).contains("BEGIN CERTIFICATE");
-            assertThat(certContent).contains("END CERTIFICATE");
+            assertThat(certContent)
+                    .contains("BEGIN CERTIFICATE")
+                    .contains("END CERTIFICATE");
         }
 
         @Test
@@ -158,8 +162,9 @@ class KafkaConfigTest {
             Map<String, Object> configs = consumerFactory.getConfigurationProperties();
 
             // Then
-            assertThat(configs).containsEntry(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, "external-kafka:9093");
-            assertThat(configs).containsEntry(ConsumerConfig.GROUP_ID_CONFIG, "test-group");
+            assertThat(configs)
+                    .containsEntry(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, "external-kafka:9093")
+                    .containsEntry(ConsumerConfig.GROUP_ID_CONFIG, "test-group");
         }
 
         @Test
@@ -190,8 +195,10 @@ class KafkaConfigTest {
             var listenerFactory = kafkaConfig.kafkaListenerContainerFactory(consumerFactory);
 
             // Then
-            assertThat(listenerFactory).isNotNull();
-            assertThat(listenerFactory.getConsumerFactory()).isEqualTo(consumerFactory);
+            assertThat(listenerFactory)
+                    .isNotNull()
+                    .extracting("consumerFactory")
+                    .isEqualTo(consumerFactory);
         }
     }
 }
