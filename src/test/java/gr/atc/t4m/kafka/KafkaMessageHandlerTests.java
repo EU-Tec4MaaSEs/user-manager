@@ -95,12 +95,14 @@ class KafkaMessageHandlerTests {
                     pilot.subGroups().containsAll(List.of("ADMIN", "USER")) &&
                     pilot.verifiableCredential().equals("base64-encoded-credential") &&
                     pilot.roles().equals(Set.of(T4mRole.PROVIDER)) &&
-                    pilot.dataSpaceConnectorUrl().equals("https://example.com/dsc")
+                    pilot.dataSpaceConnectorUrl().equals("https://example.com/dsc") &&
+                    pilot.organizationId().equals("pilot123")
             ));
-            
+
             verify(userManagementService).updateUser(argThat(user ->
                     user.getUserId().equals("userId123") &&
-                    user.getPilotCode().equals("TEST_PILOT")
+                    user.getPilotCode().equals("TEST_PILOT") &&
+                    user.getOrganizationId().equals("pilot123")
             ));
             
             verify(emailService).sendOrganizationRegistrationEmail("John Doe", "test@example.com", "test_pilot");
@@ -216,13 +218,14 @@ class KafkaMessageHandlerTests {
                     orgData
             );
             when(userManagementService.retrieveUserById("userId123")).thenReturn(existingUser);
-            
+
             // When
             kafkaMessageHandler.consume(lowerCaseEvent);
-            
+
             // Then
             verify(keycloakAdminService).createPilot(argThat(pilot ->
-                    pilot.name().equals("TEST_PILOT_LOWERCASE")
+                    pilot.name().equals("TEST_PILOT_LOWERCASE") &&
+                    pilot.organizationId().equals("pilot123")
             ));
         }
 
@@ -249,13 +252,14 @@ class KafkaMessageHandlerTests {
                     spacedData                                      // data
             );
             when(userManagementService.retrieveUserById("userId123")).thenReturn(existingUser);
-            
+
             // When
             kafkaMessageHandler.consume(spacedEvent);
-            
+
             // Then
             verify(keycloakAdminService).createPilot(argThat(pilot ->
-                    pilot.name().equals("TEST-PILOT")
+                    pilot.name().equals("TEST-PILOT") &&
+                    pilot.organizationId().equals("pilot123")
             ));
         }
 
@@ -287,8 +291,8 @@ class KafkaMessageHandlerTests {
             
             // When
             kafkaMessageHandler.consume(validEvent);
-            
-            // Then - Verify order of operations
+
+            // Then
             var inOrder = inOrder(keycloakAdminService, userManagementService, emailService);
             inOrder.verify(keycloakAdminService).createPilot(any(PilotCreationDto.class));
             inOrder.verify(userManagementService).retrieveUserById("userId123");

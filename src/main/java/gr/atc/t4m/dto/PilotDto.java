@@ -31,6 +31,9 @@ public class PilotDto {
     @JsonProperty("verifiableCredential")
     private String verifiableCredential;
 
+    @JsonProperty("organizationId")
+    private String organizationId;
+
     @JsonProperty("roles")
     private Set<T4mRole> roles;
 
@@ -81,6 +84,9 @@ public class PilotDto {
 
         setAttributeIfPresent(attributes, OrganizationDataFields.DATA_SPACE_CONNECTOR_URL.toString(),
                 pilotDto.getDataSpaceConnectorUrl());
+
+        setAttributeIfPresent(attributes, OrganizationDataFields.ORGANIZATION_ID.toString(),
+                pilotDto.getOrganizationId());
 
         setAttributeIfPresent(attributes, OrganizationDataFields.ENCODED_VERIFIABLE_CREDENTIAL.toString(),
                 pilotDto.getVerifiableCredential());
@@ -155,6 +161,10 @@ public class PilotDto {
             // Extract globalName
             pilotDto.setGlobalName(getAttributesValue(attributes,
                     OrganizationDataFields.GLOBAL_NAME.toString()));
+
+            // Extract organizationId
+            pilotDto.setOrganizationId(getAttributesValue(attributes,
+                    OrganizationDataFields.ORGANIZATION_ID.toString()));
         }
 
         return pilotDto;
@@ -175,6 +185,7 @@ public class PilotDto {
                 .subGroups(pilotData.subGroups())
                 .verifiableCredential(pilotData.verifiableCredential())
                 .dataSpaceConnectorUrl(pilotData.dataSpaceConnectorUrl())
+                .organizationId(pilotData.organizationId())
                 .roles(pilotData.roles())
                 .build();
     }

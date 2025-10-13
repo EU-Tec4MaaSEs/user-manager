@@ -48,8 +48,6 @@ public class UserController {
     private static final String GLOBAL_PILOT_CODE = "ALL";
     private static final String UNAUTHORIZED_ACTION = "You are unauthorized to request/modify this resource";
 
-    //private final IEmailService emailService;
-
     public UserController(IUserAuthService userAuthService, IUserManagementService userManagerService, IEmailService emailService) {
         this.userAuthService = userAuthService;
         this.userManagerService = userManagerService;
@@ -505,6 +503,7 @@ public class UserController {
                 .pilotRole(JwtUtils.extractPilotRole(jwt))
                 .userRole(JwtUtils.extractUserRole(jwt))
                 .pilotCode(JwtUtils.extractPilotCode(jwt))
+                .organizationId(JwtUtils.extractOrganizationIdOfUser(jwt))
                 .build();
 
         return new ResponseEntity<>(BaseAppResponse.success(currentUser, "User information from given JWT Token retrieved successfully"), HttpStatus.OK);

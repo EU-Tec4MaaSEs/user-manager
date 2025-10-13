@@ -2,7 +2,6 @@ package gr.atc.t4m.service;
 
 import gr.atc.t4m.config.properties.KeycloakProperties;
 import gr.atc.t4m.dto.UserDto;
-import gr.atc.t4m.dto.UserRoleDto;
 import gr.atc.t4m.dto.operations.PasswordsDto;
 import gr.atc.t4m.dto.operations.UserCreationDto;
 import gr.atc.t4m.service.interfaces.IEmailService;
@@ -228,9 +227,17 @@ class UserManagementServiceTests {
             UserCreationDto userCreationDto = createTestUserCreationDto();
             String activationToken = "test-token";
 
+            GroupRepresentation mockGroupRepresentation = new GroupRepresentation();
+            mockGroupRepresentation.setId("test-group-id");
+            mockGroupRepresentation.setName(TEST_PILOT_CODE);
+            Map<String, List<String>> attributes = new HashMap<>();
+            attributes.put("ORGANIZATION_ID", List.of("test-org-123"));
+            mockGroupRepresentation.setAttributes(attributes);
+
             UserManagementService spyService = spy(userManagementService);
             doReturn(true).when(spyService).hasValidKeycloakAttributes(any(UserDto.class));
             doReturn(null).when(spyService).retrieveUserRepresentationByEmail(anyString());
+            when(adminService.retrieveGroupRepresentationByName(TEST_PILOT_CODE)).thenReturn(mockGroupRepresentation);
 
             when(response.getStatus()).thenReturn(201);
             when(response.getHeaderString("Location")).thenReturn("http://keycloak/admin/realms/test/users/" + TEST_USER_ID);
@@ -242,6 +249,7 @@ class UserManagementServiceTests {
             // Then
             assertEquals(TEST_USER_ID, result);
             verify(spyService).retrieveUserRepresentationByEmail(TEST_EMAIL);
+            verify(adminService).retrieveGroupRepresentationByName(TEST_PILOT_CODE);
             verify(usersResource).create(any(UserRepresentation.class));
         }
 
@@ -276,9 +284,17 @@ class UserManagementServiceTests {
             UserCreationDto userCreationDto = createTestUserCreationDto();
             String activationToken = "test-token";
 
+            GroupRepresentation mockGroupRepresentation = new GroupRepresentation();
+            mockGroupRepresentation.setId("test-group-id");
+            mockGroupRepresentation.setName(TEST_PILOT_CODE);
+            Map<String, List<String>> attributes = new HashMap<>();
+            attributes.put("ORGANIZATION_ID", List.of("test-org-123"));
+            mockGroupRepresentation.setAttributes(attributes);
+
             UserManagementService spyService = spy(userManagementService);
             doReturn(false).when(spyService).hasValidKeycloakAttributes(any(UserDto.class));
             doReturn(null).when(spyService).retrieveUserRepresentationByEmail(TEST_EMAIL);
+            when(adminService.retrieveGroupRepresentationByName(TEST_PILOT_CODE)).thenReturn(mockGroupRepresentation);
 
             // When & Then
             ValidationException exception = assertThrows(
@@ -297,11 +313,18 @@ class UserManagementServiceTests {
             UserCreationDto userCreationDto = createTestUserCreationDto();
             String activationToken = "test-token";
 
+            GroupRepresentation mockGroupRepresentation = new GroupRepresentation();
+            mockGroupRepresentation.setId("test-group-id");
+            mockGroupRepresentation.setName(TEST_PILOT_CODE);
+            Map<String, List<String>> attributes = new HashMap<>();
+            attributes.put("ORGANIZATION_ID", List.of("test-org-123"));
+            mockGroupRepresentation.setAttributes(attributes);
+
             UserManagementService spyService = spy(userManagementService);
             doReturn(true).when(spyService).hasValidKeycloakAttributes(any(UserDto.class));
             doReturn(null).when(spyService).retrieveUserRepresentationByEmail(anyString());
+            when(adminService.retrieveGroupRepresentationByName(TEST_PILOT_CODE)).thenReturn(mockGroupRepresentation);
 
-            // Mock the exception
             ReflectionTestUtils.setField(spyService, "realm", "");
             when(keycloak.realm(anyString())).thenThrow(new RuntimeException("Keycloak connection error"));
 
@@ -310,6 +333,7 @@ class UserManagementServiceTests {
                 userDto.setActivationToken(activationToken);
                 userDto.setTokenFlagRaised(false);
                 userDto.setActivationExpiry(String.valueOf(System.currentTimeMillis() + 86400000));
+                userDto.setPilotCode("TEST_PILOT");
 
                 mockedUserDto.when(() -> UserDto.fromUserCreationDto(userCreationDto)).thenReturn(userDto);
                 mockedUserDto.when(() -> UserDto.toUserRepresentation(any(UserDto.class), isNull()))
@@ -1250,12 +1274,6 @@ class UserManagementServiceTests {
             userRep.setEnabled(true);
             userRep.setId("test-id");
 
-            UserRoleDto mockUserRole = UserRoleDto.builder()
-                    .name(TEST_USER_ROLE)
-                    .globalName(TEST_USER_ROLE)
-                    .description("Test description")
-                    .build();
-
             // Mock adminService.retrieveClientId()
             when(adminService.retrieveClientId()).thenReturn("client-UUID");
 
@@ -1303,12 +1321,6 @@ class UserManagementServiceTests {
             userRep.setEnabled(true);
             userRep.setId("test-id");
 
-            UserRoleDto mockUserRole = UserRoleDto.builder()
-                    .name(TEST_USER_ROLE)
-                    .globalName(TEST_USER_ROLE)
-                    .description("Test description")
-                    .build();
-
             when(adminService.retrieveClientId()).thenReturn("client-UUID");
 
             when(keycloak.realm(anyString())).thenReturn(realmResource);
@@ -1333,13 +1345,6 @@ class UserManagementServiceTests {
         @DisplayName("Retrieve All Users by User Role : Forbidden - Non Super Admin accessing Super Admin role")
         @Test
         void givenNonSuperAdmin_whenAccessingSuperAdminRole_thenThrowForbiddenAccessException() {
-            // Given
-            UserRoleDto mockUserRole = UserRoleDto.builder()
-                    .name("SUPER_ADMIN_ROLE")
-                    .globalName(TEST_USER_ROLE)
-                    .description("Test description")
-                    .build();
-
             // When & Then - Admin trying to access Super Admin role
             assertThrows(ForbiddenAccessException.class, () -> {
                 userManagementService.retrieveAllUsersByUserRole(
@@ -1353,13 +1358,6 @@ class UserManagementServiceTests {
         @DisplayName("Retrieve All Users by User Role : Not Found")
         @Test
         void givenInvalidUserRole_whenRetrieveUsersByUserRole_thenThrowResourceNotPresentException() {
-            // Given
-            UserRoleDto mockUserRole = UserRoleDto.builder()
-                    .name(TEST_USER_ROLE)
-                    .globalName(TEST_USER_ROLE)
-                    .description("Test description")
-                    .build();
-
             when(adminService.retrieveClientId()).thenReturn("client-UUID");
 
             when(keycloak.realm(anyString())).thenReturn(realmResource);
@@ -1382,12 +1380,6 @@ class UserManagementServiceTests {
         @Test
         void givenKeycloakError_whenRetrieveUsersByUserRole_thenThrowKeycloakException() {
             // Given
-            UserRoleDto mockUserRole = UserRoleDto.builder()
-                    .name(TEST_USER_ROLE)
-                    .globalName(TEST_USER_ROLE)
-                    .description("Test description")
-                    .build();
-
             when(adminService.retrieveClientId()).thenReturn("client-UUID");
 
             when(keycloak.realm(anyString())).thenReturn(realmResource);

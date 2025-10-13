@@ -3,6 +3,7 @@ package gr.atc.t4m.config;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import gr.atc.t4m.config.properties.KafkaProperties;
 import gr.atc.t4m.dto.EventDto;
+import gr.atc.t4m.exception.CustomExceptions;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.common.serialization.StringDeserializer;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
@@ -85,7 +86,7 @@ public class KafkaConfig {
             props.put("ssl.truststore.certificates", certContent);
             props.put("ssl.endpoint.identification.algorithm", "");
         } catch (IOException e) {
-            throw new RuntimeException("Failed to load Kafka CA certificate", e);
+            throw new CustomExceptions.ResourceNotPresentException("Failed to load Kafka CA certificate");
         }
 
         // Configure advanced JSON deserialization

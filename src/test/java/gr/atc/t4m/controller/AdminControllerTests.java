@@ -15,6 +15,8 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
+import org.springframework.cache.Cache;
+import org.springframework.cache.CacheManager;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
@@ -37,6 +39,7 @@ import static org.hamcrest.Matchers.is;
 import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.*;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.authentication;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -58,6 +61,9 @@ class AdminControllerTests {
 
     @MockitoBean
     private IUserManagementService userManagementService;
+
+    @MockitoBean
+    private CacheManager cacheManager;
 
     @Autowired
     private MockMvc mockMvc;
@@ -164,7 +170,7 @@ class AdminControllerTests {
         void givenPilotInformation_whenCreateNewPilotInSystem_thenReturnSuccess() throws Exception {
             // Given
             PilotCreationDto pilotData = new PilotCreationDto("TEST_PILOT", "Test Pilot", List.of("ADMIN"),
-                    "https://example.com/verifiable-credential", null, "https://example.com/dsc");
+                    "https://example.com/verifiable-credential", null, "https://example.com/dsc", "mockId");
 
             // Formulate JWT
             Jwt token = createMockJwtToken("SUPER_ADMIN", "SUPER_ADMIN", "ALL");
@@ -191,7 +197,7 @@ class AdminControllerTests {
         void givenPilotInformationAndInvalidJWT_whenCreateNewPilotInSystem_thenReturnForbidden() throws Exception {
             // Given
             PilotCreationDto pilotData = new PilotCreationDto("TEST_PILOT", "Test Pilot", List.of("ADMIN"),
-                    "https://example.com/verifiable-credential", null, "https://example.com/dsc");
+                    "https://example.com/verifiable-credential", null, "https://example.com/dsc", "mockId");
 
             // Mock JWT authentication
             JwtAuthenticationToken jwtAuthenticationToken = new JwtAuthenticationToken(adminJwt, List.of(new SimpleGrantedAuthority("ROLE_ADMIN")));
@@ -628,6 +634,96 @@ class AdminControllerTests {
             response.andExpect(status().isOk())
                     .andExpect(jsonPath("$.success", is(true)))
                     .andExpect(jsonPath("$.message", is("User role updated successfully")));
+        }
+    }
+
+    @Nested
+    @DisplayName("Cache Management Tests")
+    class CacheManagementTests {
+
+        @DisplayName("Reset All Caches: Success - Super Admin")
+        @Test
+        void givenSuperAdminJwt_whenResetAllCaches_thenReturnSuccess() throws Exception {
+            // Given - Mock cache manager with multiple caches
+            Cache pilotRolesCache = mock(Cache.class);
+            Cache pilotCodesCache = mock(Cache.class);
+            Cache userRolesCache = mock(Cache.class);
+            Cache usersCache = mock(Cache.class);
+
+            // When cache manager returns cache names
+            given(cacheManager.getCacheNames())
+                    .willReturn(List.of("pilotRoles", "pilotCodes", "userRoles", "users"));
+
+            // When individual caches are requested
+            given(cacheManager.getCache("pilotRoles")).willReturn(pilotRolesCache);
+            given(cacheManager.getCache("pilotCodes")).willReturn(pilotCodesCache);
+            given(cacheManager.getCache("userRoles")).willReturn(userRolesCache);
+            given(cacheManager.getCache("users")).willReturn(usersCache);
+
+            // Mock JWT authentication
+            JwtAuthenticationToken jwtAuthenticationToken = new JwtAuthenticationToken(superAdminJwt,
+                    List.of(new SimpleGrantedAuthority("ROLE_SUPER_ADMIN")));
+            SecurityContextHolder.getContext().setAuthentication(jwtAuthenticationToken);
+
+            // When
+            ResultActions response = mockMvc.perform(MockMvcRequestBuilders.delete("/api/admin/cache/reset")
+                    .with(csrf())
+                    .contentType(MediaType.APPLICATION_JSON));
+
+            // Then
+            response.andExpect(status().isOk())
+                    .andExpect(jsonPath("$.success", is(true)))
+                    .andExpect(jsonPath("$.message", is("All caches cleared successfully")));
+
+            // Verify all caches were cleared
+            verify(pilotRolesCache).clear();
+            verify(pilotCodesCache).clear();
+            verify(userRolesCache).clear();
+            verify(usersCache).clear();
+        }
+
+        @DisplayName("Reset All Caches: Forbidden - Admin Role")
+        @Test
+        void givenAdminJwt_whenResetAllCaches_thenReturnForbidden() throws Exception {
+            // Given - Mock JWT authentication with ADMIN role (not SUPER_ADMIN)
+            JwtAuthenticationToken jwtAuthenticationToken = new JwtAuthenticationToken(adminJwt,
+                    List.of(new SimpleGrantedAuthority("ROLE_ADMIN")));
+            SecurityContextHolder.getContext().setAuthentication(jwtAuthenticationToken);
+
+            // When
+            ResultActions response = mockMvc.perform(MockMvcRequestBuilders.delete("/api/admin/cache/reset")
+                    .with(csrf())
+                    .contentType(MediaType.APPLICATION_JSON));
+
+            // Then
+            response.andExpect(status().isForbidden())
+                    .andExpect(jsonPath("$.success", is(false)))
+                    .andExpect(jsonPath("$.message", is("Invalid authorization parameters")));
+
+            // Verify no caches were cleared
+            verify(cacheManager, never()).getCacheNames();
+        }
+
+        @DisplayName("Reset All Caches: Forbidden - User Role")
+        @WithMockUser(roles = "USER")
+        @Test
+        void givenUserJwt_whenResetAllCaches_thenReturnForbidden() throws Exception {
+            // Given - Mock JWT authentication with USER role
+            JwtAuthenticationToken jwtAuthenticationToken = new JwtAuthenticationToken(userJwt,
+                    List.of(new SimpleGrantedAuthority("ROLE_USER")));
+            SecurityContextHolder.getContext().setAuthentication(jwtAuthenticationToken);
+
+            // When
+            ResultActions response = mockMvc.perform(MockMvcRequestBuilders.delete("/api/admin/cache/reset")
+                    .with(csrf())
+                    .contentType(MediaType.APPLICATION_JSON));
+
+            // Then
+            response.andExpect(status().isForbidden())
+                    .andExpect(jsonPath("$.success", is(false)));
+
+            // Verify no caches were cleared
+            verify(cacheManager, never()).getCacheNames();
         }
     }
 

@@ -42,6 +42,8 @@ public class KafkaMessageHandler {
     public void consume(@Valid EventDto event) {
         String globalName = event.data().name();
         String pilotName = String.join("-", globalName.trim().toUpperCase().split("\\s+"));
+        String organizationId = event.data().id();
+
         try {
             // Create the record
             PilotCreationDto newPilot = PilotCreationDto.builder()
@@ -51,6 +53,7 @@ public class KafkaMessageHandler {
                     .verifiableCredential(event.data().verifiableCredential())
                     .roles(event.data().role())
                     .dataSpaceConnectorUrl(event.data().dataSpaceConnectorUrl())
+                    .organizationId(organizationId)
                     .build();
 
             keycloakAdminService.createPilot(newPilot);
@@ -72,6 +75,7 @@ public class KafkaMessageHandler {
             }
 
             existingUser.setPilotCode(pilotName);
+            existingUser.setOrganizationId(organizationId);
             userManagementService.updateUser(existingUser);
             log.debug("User with ID: {} assigned to organization: {}", existingUser.getUserId(), pilotName);
         } catch (ResourceNotPresentException | ValidationException e){

@@ -26,6 +26,7 @@ public class UserDto {
     private static final String PILOT_CODE = "pilot_code";
     private static final String PILOT_ROLE = "pilot_role";
     private static final String USER_ROLE = "user_role";
+    private static final String ORGANIZATION_ID = "organization_id";
     private static final String ACTIVATION_TOKEN = "activation_token";
     private static final String RESET_TOKEN = "reset_token";
     private static final String ACTIVATION_EXPIRY = "activation_expiry";
@@ -61,6 +62,9 @@ public class UserDto {
 
     @JsonProperty("userRole")
     private String userRole;
+
+    @JsonProperty("organizationId")
+    private String organizationId;
 
     @Null
     @JsonProperty("activationToken")
@@ -126,12 +130,15 @@ public class UserDto {
                 .pilotCode(getPilotCodeAttribute(keycloakUser))
                 .pilotRole(getPilotRoleAttribute(keycloakUser))
                 .userRole(getUserRoleAttribute(keycloakUser))
+                .organizationId(getOrganizationIdAttribute(keycloakUser))
                 .activationToken(getAttributeValue(keycloakUser, ACTIVATION_TOKEN))
                 .activationExpiry(getAttributeValue(keycloakUser, ACTIVATION_EXPIRY))
                 .resetToken(getAttributeValue(keycloakUser, RESET_TOKEN))
                 .tokenFlagRaised(false)
                 .build();
     }
+
+
 
     private static String getAttributeValue(UserRepresentation user, String key) {
         if (user.getAttributes() == null || !user.getAttributes().containsKey(key)
@@ -152,6 +159,8 @@ public class UserDto {
     private static String getUserRoleAttribute(UserRepresentation user) {
         return getAttributeValue(user, USER_ROLE);
     }
+
+    private static String getOrganizationIdAttribute(UserRepresentation user) { return getAttributeValue(user, ORGANIZATION_ID);}
 
     /**
      * Update User Details and Credentials
@@ -203,6 +212,9 @@ public class UserDto {
         if (user.getPilotRole() != null) {
             keycloakUser.getAttributes().put(PILOT_ROLE, List.of(user.getPilotRole()));
         }
+
+        if (user.getOrganizationId() != null)
+            keycloakUser.getAttributes().put(ORGANIZATION_ID, List.of(user.getOrganizationId()));
 
         String finalPilotRole = user.getPilotRole() != null
                 ? user.getPilotRole()
@@ -271,6 +283,7 @@ public class UserDto {
                 .pilotCode(userData.pilotCode())
                 .pilotRole(userData.pilotRole())
                 .userRole(userData.userRole())
+                .organizationId(null) // Should be configured from the stored Pilot
                 .build();
     }
 }
