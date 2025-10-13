@@ -1,7 +1,6 @@
 package gr.atc.t4m.service;
 
 import gr.atc.t4m.config.properties.EmailProperties;
-import jakarta.mail.MessagingException;
 import jakarta.mail.internet.MimeMessage;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -109,7 +108,7 @@ class EmailServiceTests {
 
     @DisplayName("Send Message : Success")
     @Test
-    void sendMessage_ShouldConfigureMimeMessageCorrectly() throws MessagingException {
+    void sendMessage_ShouldConfigureMimeMessageCorrectly() {
         // Given
         String testSubject = "Test Subject";
         String testText = "Test HTML Content";
@@ -144,9 +143,9 @@ class EmailServiceTests {
         String capturedHtmlContent = htmlContentCaptor.getValue();
         String expectedActivationLink = TEST_DASHBOARD_URL + "/activate-account?token=" + TEST_TOKEN;
 
-        assertThat(capturedHtmlContent).contains(TEST_FULL_NAME);
-        assertThat(capturedHtmlContent).contains(expectedActivationLink);
-        assertThat(capturedHtmlContent).contains("Activate Account");
+        assertThat(capturedHtmlContent).contains(TEST_FULL_NAME)
+                            .contains(expectedActivationLink)
+                            .contains("Activate Account");
     }
 
     @DisplayName("Send Reset Password Link : Correct return Link")
@@ -167,9 +166,9 @@ class EmailServiceTests {
         String capturedHtmlContent = htmlContentCaptor.getValue();
         String expectedResetLink = TEST_DASHBOARD_URL + "/reset-password?token=" + TEST_TOKEN;
 
-        assertThat(capturedHtmlContent).contains(TEST_FULL_NAME);
-        assertThat(capturedHtmlContent).contains(expectedResetLink);
-        assertThat(capturedHtmlContent).contains("Reset Password");
+        assertThat(capturedHtmlContent).contains(TEST_FULL_NAME)
+                .contains(expectedResetLink)
+                .contains("Reset Password");
     }
 
     @DisplayName("Send Activation Link : Return CompletableFuture")
@@ -179,8 +178,7 @@ class EmailServiceTests {
         CompletableFuture<Void> future = emailService.sendActivationLink(TEST_FULL_NAME, TEST_EMAIL, TEST_TOKEN);
 
         // Then
-        assertThat(future).isNotNull();
-        assertThat(future).isInstanceOf(CompletableFuture.class);
+        assertThat(future).isNotNull().isInstanceOf(CompletableFuture.class);
     }
 
     @DisplayName("Send Reset Password Link : Return CompletableFuture")
@@ -190,8 +188,7 @@ class EmailServiceTests {
         CompletableFuture<Void> future = emailService.sendResetPasswordLink(TEST_FULL_NAME, TEST_EMAIL, TEST_TOKEN);
 
         // Then
-        assertThat(future).isNotNull();
-        assertThat(future).isInstanceOf(CompletableFuture.class);
+        assertThat(future).isNotNull().isInstanceOf(CompletableFuture.class);
     }
 
     @DisplayName("Send Organization Registration Email : Success")
@@ -210,8 +207,8 @@ class EmailServiceTests {
 
         // Then
         String capturedHtmlContent = htmlContentCaptor.getValue();
-        assertThat(capturedHtmlContent).contains(TEST_FULL_NAME);
-        assertThat(capturedHtmlContent).contains(organizationName);
-        assertThat(capturedHtmlContent).contains(TEST_DASHBOARD_URL);
+        assertThat(capturedHtmlContent).contains(TEST_FULL_NAME)
+            .contains(organizationName)
+            .contains(TEST_DASHBOARD_URL);
     }
 }

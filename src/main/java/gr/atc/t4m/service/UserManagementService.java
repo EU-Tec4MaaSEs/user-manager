@@ -201,7 +201,7 @@ public class UserManagementService implements IUserManagementService {
             // Get the last part of the URL which is the user ID
             return locationHeader.substring(locationHeader.lastIndexOf('/') + 1);
         }
-        throw new RuntimeException("User ID not found in response");
+        throw new ResourceNotPresentException("User ID not found in response");
     }
 
     /**
@@ -618,7 +618,6 @@ public class UserManagementService implements IUserManagementService {
             }
         } catch (NotFoundException e) {
             log.error("User with ID: {} not found", userData.getUserId());
-            return;
         } catch (Exception e) {
             log.error("Error retrieving user resource with ID: {}", userData.getUserId());
         }
@@ -677,17 +676,17 @@ public class UserManagementService implements IUserManagementService {
      */
     @Override
     public boolean assignClientRole(String userRole, String userId, UserResource userResource) {
-        String clientId = adminService.retrieveClientId();
+        String clientIdentification = adminService.retrieveClientId();
         try {
             RoleRepresentation newClientRole = keycloak.realm(realm)
                     .clients()
-                    .get(clientId)
+                    .get(clientIdentification)
                     .roles()
                     .get(userRole)
                     .toRepresentation();
 
             List<RoleRepresentation> currentClientRoles = userResource.roles()
-                    .clientLevel(clientId)
+                    .clientLevel(clientIdentification)
                     .listAll();
 
             // Check if user is already present
@@ -699,11 +698,11 @@ public class UserManagementService implements IUserManagementService {
             // Remove current roles and add new one
             if (!currentClientRoles.isEmpty()) {
                 userResource.roles()
-                        .clientLevel(clientId)
+                        .clientLevel(clientIdentification)
                         .remove(currentClientRoles);
             }
             userResource.roles()
-                    .clientLevel(clientId)
+                    .clientLevel(clientIdentification)
                     .add(List.of(newClientRole));
 
             return true;

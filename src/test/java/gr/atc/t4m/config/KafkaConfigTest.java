@@ -66,10 +66,10 @@ class KafkaConfigTest {
             Map<String, Object> configs = consumerFactory.getConfigurationProperties();
 
             // Then
-            assertThat(configs.get(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG)).isEqualTo("localhost:9092");
-            assertThat(configs.get(ConsumerConfig.GROUP_ID_CONFIG)).isEqualTo("test-group");
-            assertThat(configs.get(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG)).isEqualTo("earliest");
-            assertThat(configs.get(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG)).isEqualTo(true);
+            assertThat(configs).containsEntry(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, "localhost:9092");
+            assertThat(configs).containsEntry(ConsumerConfig.GROUP_ID_CONFIG, "test-group");
+            assertThat(configs).containsEntry(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest");
+            assertThat(configs).containsEntry(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, true);
 
             // Then
             assertThat(configs.get("security.protocol")).isNull();
@@ -158,8 +158,8 @@ class KafkaConfigTest {
             Map<String, Object> configs = consumerFactory.getConfigurationProperties();
 
             // Then
-            assertThat(configs.get(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG)).isEqualTo("external-kafka:9093");
-            assertThat(configs.get(ConsumerConfig.GROUP_ID_CONFIG)).isEqualTo("test-group");
+            assertThat(configs).containsEntry(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, "external-kafka:9093");
+            assertThat(configs).containsEntry(ConsumerConfig.GROUP_ID_CONFIG, "test-group");
         }
 
         @Test

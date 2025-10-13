@@ -48,8 +48,6 @@ public class UserController {
     private static final String GLOBAL_PILOT_CODE = "ALL";
     private static final String UNAUTHORIZED_ACTION = "You are unauthorized to request/modify this resource";
 
-    //private final IEmailService emailService;
-
     public UserController(IUserAuthService userAuthService, IUserManagementService userManagerService, IEmailService emailService) {
         this.userAuthService = userAuthService;
         this.userManagerService = userManagerService;

@@ -1275,12 +1275,6 @@ class UserManagementServiceTests {
             userRep.setEnabled(true);
             userRep.setId("test-id");
 
-            UserRoleDto mockUserRole = UserRoleDto.builder()
-                    .name(TEST_USER_ROLE)
-                    .globalName(TEST_USER_ROLE)
-                    .description("Test description")
-                    .build();
-
             // Mock adminService.retrieveClientId()
             when(adminService.retrieveClientId()).thenReturn("client-UUID");
 
@@ -1328,12 +1322,6 @@ class UserManagementServiceTests {
             userRep.setEnabled(true);
             userRep.setId("test-id");
 
-            UserRoleDto mockUserRole = UserRoleDto.builder()
-                    .name(TEST_USER_ROLE)
-                    .globalName(TEST_USER_ROLE)
-                    .description("Test description")
-                    .build();
-
             when(adminService.retrieveClientId()).thenReturn("client-UUID");
 
             when(keycloak.realm(anyString())).thenReturn(realmResource);
@@ -1358,13 +1346,6 @@ class UserManagementServiceTests {
         @DisplayName("Retrieve All Users by User Role : Forbidden - Non Super Admin accessing Super Admin role")
         @Test
         void givenNonSuperAdmin_whenAccessingSuperAdminRole_thenThrowForbiddenAccessException() {
-            // Given
-            UserRoleDto mockUserRole = UserRoleDto.builder()
-                    .name("SUPER_ADMIN_ROLE")
-                    .globalName(TEST_USER_ROLE)
-                    .description("Test description")
-                    .build();
-
             // When & Then - Admin trying to access Super Admin role
             assertThrows(ForbiddenAccessException.class, () -> {
                 userManagementService.retrieveAllUsersByUserRole(
@@ -1378,13 +1359,6 @@ class UserManagementServiceTests {
         @DisplayName("Retrieve All Users by User Role : Not Found")
         @Test
         void givenInvalidUserRole_whenRetrieveUsersByUserRole_thenThrowResourceNotPresentException() {
-            // Given
-            UserRoleDto mockUserRole = UserRoleDto.builder()
-                    .name(TEST_USER_ROLE)
-                    .globalName(TEST_USER_ROLE)
-                    .description("Test description")
-                    .build();
-
             when(adminService.retrieveClientId()).thenReturn("client-UUID");
 
             when(keycloak.realm(anyString())).thenReturn(realmResource);
@@ -1407,12 +1381,6 @@ class UserManagementServiceTests {
         @Test
         void givenKeycloakError_whenRetrieveUsersByUserRole_thenThrowKeycloakException() {
             // Given
-            UserRoleDto mockUserRole = UserRoleDto.builder()
-                    .name(TEST_USER_ROLE)
-                    .globalName(TEST_USER_ROLE)
-                    .description("Test description")
-                    .build();
-
             when(adminService.retrieveClientId()).thenReturn("client-UUID");
 
             when(keycloak.realm(anyString())).thenReturn(realmResource);

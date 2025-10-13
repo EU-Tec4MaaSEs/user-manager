@@ -19,24 +19,26 @@ public class KafkaErrorHandler implements ConsumerAwareListenerErrorHandler {
 
         // Check if it's a validation exception
         Throwable cause = exception.getCause();
-        if (cause instanceof ConstraintViolationException constraintException) {
-            log.error("Validation failed for Kafka message:");
-            constraintException.getConstraintViolations().forEach(violation -> {
-                log.error("  Field '{}': {} (rejected value: '{}')",
-                        violation.getPropertyPath(),
-                        violation.getMessage(),
-                        violation.getInvalidValue());
-            });
-        } else if (cause instanceof MethodArgumentNotValidException methodArgException) {
-            log.error("Method argument validation failed:");
-            methodArgException.getBindingResult().getFieldErrors().forEach(error -> {
-                log.error("  Field '{}': {} (rejected value: '{}')",
-                        error.getField(),
-                        error.getDefaultMessage(),
-                        error.getRejectedValue());
-            });
-        } else {
-            log.error("Unexpected error processing Kafka message: {}", exception.getMessage(), exception);
+        switch (cause) {
+            case ConstraintViolationException constraintException -> {
+                log.error("Validation failed for Kafka message:");
+                constraintException.getConstraintViolations().forEach(violation ->
+                        log.error("ConstraintViolationException:  Field '{}': {} (rejected value: '{}')",
+                                violation.getPropertyPath(),
+                                violation.getMessage(),
+                                violation.getInvalidValue())
+                );
+            }
+            case MethodArgumentNotValidException methodArgException -> {
+                log.error("Method argument validation failed:");
+                methodArgException.getBindingResult().getFieldErrors().forEach(error ->
+                        log.error("MethodArgumentNotValidException:  Field '{}': {} (rejected value: '{}')",
+                                error.getField(),
+                                error.getDefaultMessage(),
+                                error.getRejectedValue())
+                );
+            }
+            default -> log.error("Unexpected error processing Kafka message: {}", exception.getMessage(), exception);
         }
 
         // Return null to acknowledge message
