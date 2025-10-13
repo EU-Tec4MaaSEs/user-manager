@@ -40,4 +40,6 @@ public interface IUserManagementService {
     void resetPassword(String userId, String resetToken, String password);
 
     void activateUser(String userId, String activationToken, String password);
+
+    void updateActivationToken(String userId, String activationToken);
 }
