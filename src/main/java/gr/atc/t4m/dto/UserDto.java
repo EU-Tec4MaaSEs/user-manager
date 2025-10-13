@@ -109,7 +109,7 @@ public class UserDto {
         }
 
         updateUserDetails(user, keycloakUser, existingUser);
-        updateUserTokenAttributes(user, keycloakUser, existingUser);
+        updateUserTokenAttributes(user, keycloakUser);
         updateUserAttributes(user, keycloakUser);
 
         return keycloakUser;
@@ -243,10 +243,8 @@ public class UserDto {
      *
      * @param user : User input data
      * @param keycloakUser : Updated version of Keycloak user
-     * @param existingUser : Existing user in Keycloak
      */
-    private static void updateUserTokenAttributes(UserDto user, UserRepresentation keycloakUser,
-                                                  UserRepresentation existingUser) {
+    private static void updateUserTokenAttributes(UserDto user, UserRepresentation keycloakUser) {
         // Attributes Field
         if (keycloakUser.getAttributes() == null) {
             keycloakUser.setAttributes(new HashMap<>());
