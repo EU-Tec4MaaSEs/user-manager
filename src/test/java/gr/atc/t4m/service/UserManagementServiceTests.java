@@ -912,6 +912,102 @@ class UserManagementServiceTests {
             assertThrows(InvalidRefreshTokenException.class,
                     () -> spyService.resetPassword(TEST_USER_ID, "wrong-token", "new-pass"));
         }
+
+        @Nested
+        @DisplayName("Update Activation Token Tests")
+        class UpdateActivationTokenTests {
+
+            @DisplayName("Update Activation Token : Success")
+            @Test
+            void givenValidUserIdAndToken_whenUpdateActivationToken_thenSuccess() {
+                // Given
+                String userId = "test-user-123";
+                String newActivationToken = "new-activation-token-456";
+
+                UserRepresentation existingUser = new UserRepresentation();
+                existingUser.setId(userId);
+                existingUser.setEmail(TEST_EMAIL);
+                existingUser.setEnabled(false);
+
+                UserManagementService spyService = spy(userManagementService);
+                doReturn(existingUser).when(spyService).retrieveUserRepresentationById(userId);
+                doNothing().when(spyService).updateUser(any(UserDto.class));
+
+                // When
+                spyService.updateActivationToken(userId, newActivationToken);
+
+                // Then
+                ArgumentCaptor<UserDto> userDtoCaptor = ArgumentCaptor.forClass(UserDto.class);
+                verify(spyService).updateUser(userDtoCaptor.capture());
+
+                UserDto capturedUserDto = userDtoCaptor.getValue();
+                assertThat(capturedUserDto.getUserId()).isEqualTo(userId);
+                assertThat(capturedUserDto.getActivationToken()).isEqualTo(newActivationToken);
+                assertThat(capturedUserDto.getActivationExpiry()).isNotNull();
+                assertThat(capturedUserDto.isTokenFlagRaised()).isFalse();
+
+                long expiryTime = Long.parseLong(capturedUserDto.getActivationExpiry());
+                long currentTime = System.currentTimeMillis();
+                long threeDaysInMs = 3 * 24 * 60 * 60 * 1000L;
+                long expectedExpiry = currentTime + threeDaysInMs;
+                assertThat(expiryTime).isBetween(expectedExpiry - 5000, expectedExpiry + 5000);
+            }
+
+            @DisplayName("Update Activation Token : User Not Found")
+            @Test
+            void givenNonExistentUser_whenUpdateActivationToken_thenThrowResourceNotPresentException() {
+                // Given
+                String userId = "non-existent-user";
+                String activationToken = "activation-token";
+
+                UserManagementService spyService = spy(userManagementService);
+                doReturn(null).when(spyService).retrieveUserRepresentationById(userId);
+
+                // When
+                ResourceNotPresentException exception = assertThrows(
+                        ResourceNotPresentException.class,
+                        () -> spyService.updateActivationToken(userId, activationToken)
+                );
+
+                // Then
+                assertThat(exception.getMessage()).isEqualTo("User with ID " + userId + " not found");
+                verify(spyService).retrieveUserRepresentationById(userId);
+                verify(spyService, never()).updateUser(any(UserDto.class));
+            }
+
+            @DisplayName("Update Activation Token : All Required Fields Are Set")
+            @Test
+            void givenValidRequest_whenUpdateActivationToken_thenAllFieldsAreSet() {
+                // Given
+                String userId = "test-user-complete";
+                String activationToken = "complete-token";
+
+                UserRepresentation existingUser = new UserRepresentation();
+                existingUser.setId(userId);
+                existingUser.setEmail("complete@test.com");
+                existingUser.setEnabled(false);
+
+                UserManagementService spyService = spy(userManagementService);
+                doReturn(existingUser).when(spyService).retrieveUserRepresentationById(userId);
+                doNothing().when(spyService).updateUser(any(UserDto.class));
+
+                // When
+                spyService.updateActivationToken(userId, activationToken);
+
+                // Then
+                ArgumentCaptor<UserDto> userDtoCaptor = ArgumentCaptor.forClass(UserDto.class);
+                verify(spyService).updateUser(userDtoCaptor.capture());
+
+                UserDto capturedUserDto = userDtoCaptor.getValue();
+                assertThat(capturedUserDto.getUserId()).isEqualTo(userId);
+                assertThat(capturedUserDto.getActivationToken()).isEqualTo(activationToken);
+                assertThat(capturedUserDto.getActivationExpiry()).isNotNull();
+                assertThat(capturedUserDto.isTokenFlagRaised()).isFalse();
+
+                long expiryTime = Long.parseLong(capturedUserDto.getActivationExpiry());
+                assertThat(expiryTime).isGreaterThan(System.currentTimeMillis());
+            }
+        }
     }
 
     @Nested
@@ -1244,6 +1340,7 @@ class UserManagementServiceTests {
             UserRepresentation userRep = new UserRepresentation();
             userRep.setId(TEST_USER_ID);
             userRep.setEmail(TEST_EMAIL);
+            userRep.setEnabled(true);
 
             when(usersResource.list()).thenReturn(List.of(userRep));
 
@@ -1405,6 +1502,7 @@ class UserManagementServiceTests {
             UserRepresentation userRep = new UserRepresentation();
             userRep.setId(TEST_USER_ID);
             userRep.setEmail(TEST_EMAIL);
+            userRep.setEnabled(true);
 
             GroupRepresentation groupRepr = new GroupRepresentation();
             groupRepr.setId("test-id");
@@ -1474,6 +1572,7 @@ class UserManagementServiceTests {
             UserRepresentation userRep = new UserRepresentation();
             userRep.setId(TEST_USER_ID);
             userRep.setEmail(TEST_EMAIL);
+            userRep.setEnabled(true);
 
             UserManagementService spyService = spy(userManagementService);
             doReturn(userRep).when(spyService).retrieveUserRepresentationById(TEST_USER_ID);

@@ -418,5 +418,4 @@ public class AdminController {
 
         return new ResponseEntity<>(BaseAppResponse.success(null, "All caches cleared successfully"), HttpStatus.OK);
     }
-
 }

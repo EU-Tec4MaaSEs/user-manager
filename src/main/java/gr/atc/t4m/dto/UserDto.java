@@ -85,6 +85,9 @@ public class UserDto {
     @JsonIgnore
     private boolean tokenFlagRaised;
 
+    @JsonProperty("isEnabled")
+    private boolean enabled;
+
     /**
      * Transform a UserDTO to User Representation
      *
@@ -106,7 +109,7 @@ public class UserDto {
         }
 
         updateUserDetails(user, keycloakUser, existingUser);
-        updateUserTokenAttributes(user, keycloakUser, existingUser);
+        updateUserTokenAttributes(user, keycloakUser);
         updateUserAttributes(user, keycloakUser);
 
         return keycloakUser;
@@ -135,6 +138,7 @@ public class UserDto {
                 .activationExpiry(getAttributeValue(keycloakUser, ACTIVATION_EXPIRY))
                 .resetToken(getAttributeValue(keycloakUser, RESET_TOKEN))
                 .tokenFlagRaised(false)
+                .enabled(keycloakUser.isEnabled())
                 .build();
     }
 
@@ -239,26 +243,24 @@ public class UserDto {
      *
      * @param user : User input data
      * @param keycloakUser : Updated version of Keycloak user
-     * @param existingUser : Existing user in Keycloak
      */
-    private static void updateUserTokenAttributes(UserDto user, UserRepresentation keycloakUser,
-                                                  UserRepresentation existingUser) {
+    private static void updateUserTokenAttributes(UserDto user, UserRepresentation keycloakUser) {
         // Attributes Field
         if (keycloakUser.getAttributes() == null) {
             keycloakUser.setAttributes(new HashMap<>());
         }
-        // Set activation token and expiration time as attributes - Two cases can be observed:
+        // Set activation token and expiration time as attributes - Three cases can be observed:
         // 1) Create a new user
-        // 2) Activate user
-        if (existingUser == null && user.getActivationExpiry() != null
-                && user.getActivationToken() != null && !user.isTokenFlagRaised()) { // Creation of a new user
-            keycloakUser.getAttributes().put(ACTIVATION_TOKEN, List.of(user.getActivationToken()));
-            keycloakUser.getAttributes().put(ACTIVATION_EXPIRY, List.of(user.getActivationExpiry()));
-        } else if (user.isTokenFlagRaised() && user.getActivationToken() != null
-                && keycloakUser.getAttributes() != null) { // This will apply only after the user has been activated
+        // 2) Activate user (remove tokens and enable)
+        // 3) Resend Activation Email (update tokens for existing user)
+        if (user.isTokenFlagRaised() && user.getActivationToken() != null
+                && keycloakUser.getAttributes() != null) { // Case 2: Activate user - remove tokens and enable
             keycloakUser.getAttributes().remove(ACTIVATION_TOKEN);
             keycloakUser.getAttributes().remove(ACTIVATION_EXPIRY);
             keycloakUser.setEnabled(true); // Enable user
+        } else if (user.getActivationToken() != null && user.getActivationExpiry() != null) { // Case 1 & 3: Create new user OR resend activation
+            keycloakUser.getAttributes().put(ACTIVATION_TOKEN, List.of(user.getActivationToken()));
+            keycloakUser.getAttributes().put(ACTIVATION_EXPIRY, List.of(user.getActivationExpiry()));
         }
 
         // Set Reset Token if exists (Case of forgot password) or Remove it in case of Reset Password
