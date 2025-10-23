@@ -23,6 +23,7 @@ public class JwtUtils {
     private static final String USER_ROLE = "user_role";
     private static final String PILOT_CODE = "pilot_code";
     private static final String PILOT_ROLE = "pilot_role";
+    private static final String ORGANIZATION_ID = "organization_id";
     private static final ObjectMapper objectMapper = new ObjectMapper();
 
     private JwtUtils() {}
@@ -72,6 +73,19 @@ public class JwtUtils {
             return null;
         }
         return jwt.getClaimAsStringList(PILOT_ROLE).getFirst();
+    }
+
+    /**
+     * Util to retrieve organization id from JWT Token
+     *
+     * @param jwt : Token to extract organization id
+     * @return Organization ID
+     */
+    public static String extractOrganizationIdOfUser(Jwt jwt){
+        if (jwt == null || jwt.getClaimAsString(ORGANIZATION_ID) == null) {
+            return null;
+        }
+        return jwt.getClaimAsStringList(ORGANIZATION_ID).getFirst();
     }
 
     /**

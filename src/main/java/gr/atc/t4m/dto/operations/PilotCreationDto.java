@@ -50,5 +50,12 @@ public record PilotCreationDto(
                 name = "dataSpaceConnectorUrl",
                 type = "String",
                 requiredMode = Schema.RequiredMode.NOT_REQUIRED)
-        String dataSpaceConnectorUrl
+        String dataSpaceConnectorUrl,
+
+        @JsonIgnore
+        @Schema(description = "Organization ID - Mapped to Organization Management",
+                name = "organizationId",
+                type = "String",
+                requiredMode = Schema.RequiredMode.NOT_REQUIRED)
+        String organizationId
 ) {}

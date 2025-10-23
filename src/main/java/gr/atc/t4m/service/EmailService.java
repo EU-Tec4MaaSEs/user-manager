@@ -62,7 +62,7 @@ public class EmailService implements IEmailService {
                                                                   font-size: 16px;
                                                                   font-weight: bold;
                                                                 ">Activate Account</a>
-                                <p style="text-align: center; font-size: 14px; color: #666; font-style: italic;"><strong>Note:</strong> This activation link will expire in 24 hours for security reasons.</p>
+                                <p style="text-align: center; font-size: 14px; color: #666; font-style: italic;"><strong>Note:</strong> This activation link will expire in 3 Days for security reasons.</p>
                              </div>
              
                             <p style="font-size: 16px;">If you didn't expect this invitation or believe it was sent by error, please ignore this email or contact our support team.</p>
@@ -221,7 +221,7 @@ public class EmailService implements IEmailService {
             helper.setTo(recipientAddress);
             helper.setSubject(subject);
             helper.setText(text, true);
-            log.info("Sending message to email: {}", recipientAddress);
+            log.debug("Sending message to email: {}", recipientAddress);
             javaMailSender.send(message);
         } catch (MessagingException e) {
             log.error("Unable to send message to email: {} - Error: {}", recipientAddress, e.getMessage());

@@ -2,7 +2,6 @@ package gr.atc.t4m.service;
 
 import gr.atc.t4m.config.properties.KeycloakProperties;
 import gr.atc.t4m.dto.UserDto;
-import gr.atc.t4m.dto.UserRoleDto;
 import gr.atc.t4m.dto.operations.PasswordsDto;
 import gr.atc.t4m.dto.operations.UserCreationDto;
 import gr.atc.t4m.service.interfaces.IEmailService;
@@ -228,9 +227,17 @@ class UserManagementServiceTests {
             UserCreationDto userCreationDto = createTestUserCreationDto();
             String activationToken = "test-token";
 
+            GroupRepresentation mockGroupRepresentation = new GroupRepresentation();
+            mockGroupRepresentation.setId("test-group-id");
+            mockGroupRepresentation.setName(TEST_PILOT_CODE);
+            Map<String, List<String>> attributes = new HashMap<>();
+            attributes.put("ORGANIZATION_ID", List.of("test-org-123"));
+            mockGroupRepresentation.setAttributes(attributes);
+
             UserManagementService spyService = spy(userManagementService);
             doReturn(true).when(spyService).hasValidKeycloakAttributes(any(UserDto.class));
             doReturn(null).when(spyService).retrieveUserRepresentationByEmail(anyString());
+            when(adminService.retrieveGroupRepresentationByName(TEST_PILOT_CODE)).thenReturn(mockGroupRepresentation);
 
             when(response.getStatus()).thenReturn(201);
             when(response.getHeaderString("Location")).thenReturn("http://keycloak/admin/realms/test/users/" + TEST_USER_ID);
@@ -242,6 +249,7 @@ class UserManagementServiceTests {
             // Then
             assertEquals(TEST_USER_ID, result);
             verify(spyService).retrieveUserRepresentationByEmail(TEST_EMAIL);
+            verify(adminService).retrieveGroupRepresentationByName(TEST_PILOT_CODE);
             verify(usersResource).create(any(UserRepresentation.class));
         }
 
@@ -276,9 +284,17 @@ class UserManagementServiceTests {
             UserCreationDto userCreationDto = createTestUserCreationDto();
             String activationToken = "test-token";
 
+            GroupRepresentation mockGroupRepresentation = new GroupRepresentation();
+            mockGroupRepresentation.setId("test-group-id");
+            mockGroupRepresentation.setName(TEST_PILOT_CODE);
+            Map<String, List<String>> attributes = new HashMap<>();
+            attributes.put("ORGANIZATION_ID", List.of("test-org-123"));
+            mockGroupRepresentation.setAttributes(attributes);
+
             UserManagementService spyService = spy(userManagementService);
             doReturn(false).when(spyService).hasValidKeycloakAttributes(any(UserDto.class));
             doReturn(null).when(spyService).retrieveUserRepresentationByEmail(TEST_EMAIL);
+            when(adminService.retrieveGroupRepresentationByName(TEST_PILOT_CODE)).thenReturn(mockGroupRepresentation);
 
             // When & Then
             ValidationException exception = assertThrows(
@@ -297,11 +313,18 @@ class UserManagementServiceTests {
             UserCreationDto userCreationDto = createTestUserCreationDto();
             String activationToken = "test-token";
 
+            GroupRepresentation mockGroupRepresentation = new GroupRepresentation();
+            mockGroupRepresentation.setId("test-group-id");
+            mockGroupRepresentation.setName(TEST_PILOT_CODE);
+            Map<String, List<String>> attributes = new HashMap<>();
+            attributes.put("ORGANIZATION_ID", List.of("test-org-123"));
+            mockGroupRepresentation.setAttributes(attributes);
+
             UserManagementService spyService = spy(userManagementService);
             doReturn(true).when(spyService).hasValidKeycloakAttributes(any(UserDto.class));
             doReturn(null).when(spyService).retrieveUserRepresentationByEmail(anyString());
+            when(adminService.retrieveGroupRepresentationByName(TEST_PILOT_CODE)).thenReturn(mockGroupRepresentation);
 
-            // Mock the exception
             ReflectionTestUtils.setField(spyService, "realm", "");
             when(keycloak.realm(anyString())).thenThrow(new RuntimeException("Keycloak connection error"));
 
@@ -310,6 +333,7 @@ class UserManagementServiceTests {
                 userDto.setActivationToken(activationToken);
                 userDto.setTokenFlagRaised(false);
                 userDto.setActivationExpiry(String.valueOf(System.currentTimeMillis() + 86400000));
+                userDto.setPilotCode("TEST_PILOT");
 
                 mockedUserDto.when(() -> UserDto.fromUserCreationDto(userCreationDto)).thenReturn(userDto);
                 mockedUserDto.when(() -> UserDto.toUserRepresentation(any(UserDto.class), isNull()))
@@ -888,6 +912,102 @@ class UserManagementServiceTests {
             assertThrows(InvalidRefreshTokenException.class,
                     () -> spyService.resetPassword(TEST_USER_ID, "wrong-token", "new-pass"));
         }
+
+        @Nested
+        @DisplayName("Update Activation Token Tests")
+        class UpdateActivationTokenTests {
+
+            @DisplayName("Update Activation Token : Success")
+            @Test
+            void givenValidUserIdAndToken_whenUpdateActivationToken_thenSuccess() {
+                // Given
+                String userId = "test-user-123";
+                String newActivationToken = "new-activation-token-456";
+
+                UserRepresentation existingUser = new UserRepresentation();
+                existingUser.setId(userId);
+                existingUser.setEmail(TEST_EMAIL);
+                existingUser.setEnabled(false);
+
+                UserManagementService spyService = spy(userManagementService);
+                doReturn(existingUser).when(spyService).retrieveUserRepresentationById(userId);
+                doNothing().when(spyService).updateUser(any(UserDto.class));
+
+                // When
+                spyService.updateActivationToken(userId, newActivationToken);
+
+                // Then
+                ArgumentCaptor<UserDto> userDtoCaptor = ArgumentCaptor.forClass(UserDto.class);
+                verify(spyService).updateUser(userDtoCaptor.capture());
+
+                UserDto capturedUserDto = userDtoCaptor.getValue();
+                assertThat(capturedUserDto.getUserId()).isEqualTo(userId);
+                assertThat(capturedUserDto.getActivationToken()).isEqualTo(newActivationToken);
+                assertThat(capturedUserDto.getActivationExpiry()).isNotNull();
+                assertThat(capturedUserDto.isTokenFlagRaised()).isFalse();
+
+                long expiryTime = Long.parseLong(capturedUserDto.getActivationExpiry());
+                long currentTime = System.currentTimeMillis();
+                long threeDaysInMs = 3 * 24 * 60 * 60 * 1000L;
+                long expectedExpiry = currentTime + threeDaysInMs;
+                assertThat(expiryTime).isBetween(expectedExpiry - 5000, expectedExpiry + 5000);
+            }
+
+            @DisplayName("Update Activation Token : User Not Found")
+            @Test
+            void givenNonExistentUser_whenUpdateActivationToken_thenThrowResourceNotPresentException() {
+                // Given
+                String userId = "non-existent-user";
+                String activationToken = "activation-token";
+
+                UserManagementService spyService = spy(userManagementService);
+                doReturn(null).when(spyService).retrieveUserRepresentationById(userId);
+
+                // When
+                ResourceNotPresentException exception = assertThrows(
+                        ResourceNotPresentException.class,
+                        () -> spyService.updateActivationToken(userId, activationToken)
+                );
+
+                // Then
+                assertThat(exception.getMessage()).isEqualTo("User with ID " + userId + " not found");
+                verify(spyService).retrieveUserRepresentationById(userId);
+                verify(spyService, never()).updateUser(any(UserDto.class));
+            }
+
+            @DisplayName("Update Activation Token : All Required Fields Are Set")
+            @Test
+            void givenValidRequest_whenUpdateActivationToken_thenAllFieldsAreSet() {
+                // Given
+                String userId = "test-user-complete";
+                String activationToken = "complete-token";
+
+                UserRepresentation existingUser = new UserRepresentation();
+                existingUser.setId(userId);
+                existingUser.setEmail("complete@test.com");
+                existingUser.setEnabled(false);
+
+                UserManagementService spyService = spy(userManagementService);
+                doReturn(existingUser).when(spyService).retrieveUserRepresentationById(userId);
+                doNothing().when(spyService).updateUser(any(UserDto.class));
+
+                // When
+                spyService.updateActivationToken(userId, activationToken);
+
+                // Then
+                ArgumentCaptor<UserDto> userDtoCaptor = ArgumentCaptor.forClass(UserDto.class);
+                verify(spyService).updateUser(userDtoCaptor.capture());
+
+                UserDto capturedUserDto = userDtoCaptor.getValue();
+                assertThat(capturedUserDto.getUserId()).isEqualTo(userId);
+                assertThat(capturedUserDto.getActivationToken()).isEqualTo(activationToken);
+                assertThat(capturedUserDto.getActivationExpiry()).isNotNull();
+                assertThat(capturedUserDto.isTokenFlagRaised()).isFalse();
+
+                long expiryTime = Long.parseLong(capturedUserDto.getActivationExpiry());
+                assertThat(expiryTime).isGreaterThan(System.currentTimeMillis());
+            }
+        }
     }
 
     @Nested
@@ -1220,6 +1340,7 @@ class UserManagementServiceTests {
             UserRepresentation userRep = new UserRepresentation();
             userRep.setId(TEST_USER_ID);
             userRep.setEmail(TEST_EMAIL);
+            userRep.setEnabled(true);
 
             when(usersResource.list()).thenReturn(List.of(userRep));
 
@@ -1249,12 +1370,6 @@ class UserManagementServiceTests {
             userRep.setEmail("test@test.com");
             userRep.setEnabled(true);
             userRep.setId("test-id");
-
-            UserRoleDto mockUserRole = UserRoleDto.builder()
-                    .name(TEST_USER_ROLE)
-                    .globalName(TEST_USER_ROLE)
-                    .description("Test description")
-                    .build();
 
             // Mock adminService.retrieveClientId()
             when(adminService.retrieveClientId()).thenReturn("client-UUID");
@@ -1303,12 +1418,6 @@ class UserManagementServiceTests {
             userRep.setEnabled(true);
             userRep.setId("test-id");
 
-            UserRoleDto mockUserRole = UserRoleDto.builder()
-                    .name(TEST_USER_ROLE)
-                    .globalName(TEST_USER_ROLE)
-                    .description("Test description")
-                    .build();
-
             when(adminService.retrieveClientId()).thenReturn("client-UUID");
 
             when(keycloak.realm(anyString())).thenReturn(realmResource);
@@ -1333,13 +1442,6 @@ class UserManagementServiceTests {
         @DisplayName("Retrieve All Users by User Role : Forbidden - Non Super Admin accessing Super Admin role")
         @Test
         void givenNonSuperAdmin_whenAccessingSuperAdminRole_thenThrowForbiddenAccessException() {
-            // Given
-            UserRoleDto mockUserRole = UserRoleDto.builder()
-                    .name("SUPER_ADMIN_ROLE")
-                    .globalName(TEST_USER_ROLE)
-                    .description("Test description")
-                    .build();
-
             // When & Then - Admin trying to access Super Admin role
             assertThrows(ForbiddenAccessException.class, () -> {
                 userManagementService.retrieveAllUsersByUserRole(
@@ -1353,13 +1455,6 @@ class UserManagementServiceTests {
         @DisplayName("Retrieve All Users by User Role : Not Found")
         @Test
         void givenInvalidUserRole_whenRetrieveUsersByUserRole_thenThrowResourceNotPresentException() {
-            // Given
-            UserRoleDto mockUserRole = UserRoleDto.builder()
-                    .name(TEST_USER_ROLE)
-                    .globalName(TEST_USER_ROLE)
-                    .description("Test description")
-                    .build();
-
             when(adminService.retrieveClientId()).thenReturn("client-UUID");
 
             when(keycloak.realm(anyString())).thenReturn(realmResource);
@@ -1382,12 +1477,6 @@ class UserManagementServiceTests {
         @Test
         void givenKeycloakError_whenRetrieveUsersByUserRole_thenThrowKeycloakException() {
             // Given
-            UserRoleDto mockUserRole = UserRoleDto.builder()
-                    .name(TEST_USER_ROLE)
-                    .globalName(TEST_USER_ROLE)
-                    .description("Test description")
-                    .build();
-
             when(adminService.retrieveClientId()).thenReturn("client-UUID");
 
             when(keycloak.realm(anyString())).thenReturn(realmResource);
@@ -1413,6 +1502,7 @@ class UserManagementServiceTests {
             UserRepresentation userRep = new UserRepresentation();
             userRep.setId(TEST_USER_ID);
             userRep.setEmail(TEST_EMAIL);
+            userRep.setEnabled(true);
 
             GroupRepresentation groupRepr = new GroupRepresentation();
             groupRepr.setId("test-id");
@@ -1482,6 +1572,7 @@ class UserManagementServiceTests {
             UserRepresentation userRep = new UserRepresentation();
             userRep.setId(TEST_USER_ID);
             userRep.setEmail(TEST_EMAIL);
+            userRep.setEnabled(true);
 
             UserManagementService spyService = spy(userManagementService);
             doReturn(userRep).when(spyService).retrieveUserRepresentationById(TEST_USER_ID);

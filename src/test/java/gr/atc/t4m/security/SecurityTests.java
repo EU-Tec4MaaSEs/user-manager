@@ -169,7 +169,7 @@ class SecurityTests {
         MockFilterChain filterChain = new MockFilterChain();
 
         // When
-        int requestCount = 150; // Limit = 100
+        int requestCount = 300; // Limit = 250
         for (int i = 0; i < requestCount; i++) {
             filter.doFilter(request, response, filterChain);
             if (response.getStatus() == 429) {

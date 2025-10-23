@@ -26,6 +26,7 @@ public class UserDto {
     private static final String PILOT_CODE = "pilot_code";
     private static final String PILOT_ROLE = "pilot_role";
     private static final String USER_ROLE = "user_role";
+    private static final String ORGANIZATION_ID = "organization_id";
     private static final String ACTIVATION_TOKEN = "activation_token";
     private static final String RESET_TOKEN = "reset_token";
     private static final String ACTIVATION_EXPIRY = "activation_expiry";
@@ -62,6 +63,9 @@ public class UserDto {
     @JsonProperty("userRole")
     private String userRole;
 
+    @JsonProperty("organizationId")
+    private String organizationId;
+
     @Null
     @JsonProperty("activationToken")
     @JsonIgnore
@@ -80,6 +84,9 @@ public class UserDto {
     @JsonProperty("tokenFlag")
     @JsonIgnore
     private boolean tokenFlagRaised;
+
+    @JsonProperty("isEnabled")
+    private boolean enabled;
 
     /**
      * Transform a UserDTO to User Representation
@@ -102,7 +109,7 @@ public class UserDto {
         }
 
         updateUserDetails(user, keycloakUser, existingUser);
-        updateUserTokenAttributes(user, keycloakUser, existingUser);
+        updateUserTokenAttributes(user, keycloakUser);
         updateUserAttributes(user, keycloakUser);
 
         return keycloakUser;
@@ -126,12 +133,16 @@ public class UserDto {
                 .pilotCode(getPilotCodeAttribute(keycloakUser))
                 .pilotRole(getPilotRoleAttribute(keycloakUser))
                 .userRole(getUserRoleAttribute(keycloakUser))
+                .organizationId(getOrganizationIdAttribute(keycloakUser))
                 .activationToken(getAttributeValue(keycloakUser, ACTIVATION_TOKEN))
                 .activationExpiry(getAttributeValue(keycloakUser, ACTIVATION_EXPIRY))
                 .resetToken(getAttributeValue(keycloakUser, RESET_TOKEN))
                 .tokenFlagRaised(false)
+                .enabled(keycloakUser.isEnabled())
                 .build();
     }
+
+
 
     private static String getAttributeValue(UserRepresentation user, String key) {
         if (user.getAttributes() == null || !user.getAttributes().containsKey(key)
@@ -152,6 +163,8 @@ public class UserDto {
     private static String getUserRoleAttribute(UserRepresentation user) {
         return getAttributeValue(user, USER_ROLE);
     }
+
+    private static String getOrganizationIdAttribute(UserRepresentation user) { return getAttributeValue(user, ORGANIZATION_ID);}
 
     /**
      * Update User Details and Credentials
@@ -204,6 +217,9 @@ public class UserDto {
             keycloakUser.getAttributes().put(PILOT_ROLE, List.of(user.getPilotRole()));
         }
 
+        if (user.getOrganizationId() != null)
+            keycloakUser.getAttributes().put(ORGANIZATION_ID, List.of(user.getOrganizationId()));
+
         String finalPilotRole = user.getPilotRole() != null
                 ? user.getPilotRole()
                 : Optional.ofNullable(keycloakUser.getAttributes().get(PILOT_ROLE))
@@ -227,26 +243,24 @@ public class UserDto {
      *
      * @param user : User input data
      * @param keycloakUser : Updated version of Keycloak user
-     * @param existingUser : Existing user in Keycloak
      */
-    private static void updateUserTokenAttributes(UserDto user, UserRepresentation keycloakUser,
-                                                  UserRepresentation existingUser) {
+    private static void updateUserTokenAttributes(UserDto user, UserRepresentation keycloakUser) {
         // Attributes Field
         if (keycloakUser.getAttributes() == null) {
             keycloakUser.setAttributes(new HashMap<>());
         }
-        // Set activation token and expiration time as attributes - Two cases can be observed:
+        // Set activation token and expiration time as attributes - Three cases can be observed:
         // 1) Create a new user
-        // 2) Activate user
-        if (existingUser == null && user.getActivationExpiry() != null
-                && user.getActivationToken() != null && !user.isTokenFlagRaised()) { // Creation of a new user
-            keycloakUser.getAttributes().put(ACTIVATION_TOKEN, List.of(user.getActivationToken()));
-            keycloakUser.getAttributes().put(ACTIVATION_EXPIRY, List.of(user.getActivationExpiry()));
-        } else if (user.isTokenFlagRaised() && user.getActivationToken() != null
-                && keycloakUser.getAttributes() != null) { // This will apply only after the user has been activated
+        // 2) Activate user (remove tokens and enable)
+        // 3) Resend Activation Email (update tokens for existing user)
+        if (user.isTokenFlagRaised() && user.getActivationToken() != null
+                && keycloakUser.getAttributes() != null) { // Case 2: Activate user - remove tokens and enable
             keycloakUser.getAttributes().remove(ACTIVATION_TOKEN);
             keycloakUser.getAttributes().remove(ACTIVATION_EXPIRY);
             keycloakUser.setEnabled(true); // Enable user
+        } else if (user.getActivationToken() != null && user.getActivationExpiry() != null) { // Case 1 & 3: Create new user OR resend activation
+            keycloakUser.getAttributes().put(ACTIVATION_TOKEN, List.of(user.getActivationToken()));
+            keycloakUser.getAttributes().put(ACTIVATION_EXPIRY, List.of(user.getActivationExpiry()));
         }
 
         // Set Reset Token if exists (Case of forgot password) or Remove it in case of Reset Password
@@ -271,6 +285,7 @@ public class UserDto {
                 .pilotCode(userData.pilotCode())
                 .pilotRole(userData.pilotRole())
                 .userRole(userData.userRole())
+                .organizationId(null) // Should be configured from the stored Pilot
                 .build();
     }
 }

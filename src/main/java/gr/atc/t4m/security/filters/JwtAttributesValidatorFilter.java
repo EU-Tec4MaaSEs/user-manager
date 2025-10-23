@@ -1,7 +1,6 @@
 package gr.atc.t4m.security.filters;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import gr.atc.t4m.config.properties.KeycloakProperties;
 import gr.atc.t4m.controller.BaseAppResponse;
 import gr.atc.t4m.util.JwtUtils;
 import jakarta.servlet.FilterChain;
@@ -25,12 +24,9 @@ public class JwtAttributesValidatorFilter extends OncePerRequestFilter {
 
     private final ObjectMapper objectMapper;
 
-    private final String clientName;
 
-
-    public JwtAttributesValidatorFilter(ObjectMapper objectMapper, KeycloakProperties keycloakProperties) {
+    public JwtAttributesValidatorFilter(ObjectMapper objectMapper) {
         this.objectMapper = objectMapper;
-        this.clientName = keycloakProperties.clientId();
     }
 
     @Override

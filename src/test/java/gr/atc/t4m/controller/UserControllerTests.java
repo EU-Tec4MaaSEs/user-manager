@@ -102,6 +102,7 @@ class UserControllerTests {
                             .userRole("TEST")
                             .username("TestUser")
                             .password("TestPass123@")
+                            .organizationId("mockId")
                             .build();
 
         listTestUsers = List.of(testUser);
@@ -465,6 +466,231 @@ class UserControllerTests {
             response.andExpect(status().isBadRequest())
                     .andExpect(jsonPath("$.success", is(false)))
                     .andExpect(jsonPath("$.message", is("Validation failed")));
+        }
+    }
+
+    @Nested
+    @DisplayName("Resend Activation Email Tests")
+    class ResendActivationEmailTests {
+
+        @Nested
+        @DisplayName("Super Admin Resend Tests")
+        class SuperAdminResendTests {
+
+            @DisplayName("Resend Activation Email : Success for Super Admin")
+            @WithMockUser("SUPER_ADMIN")
+            @Test
+            void givenSuperAdminAndNotEnabledUser_whenResendActivationEmail_thenSuccess() throws Exception {
+                // Given
+                UserDto notEnabledUser = UserDto.builder()
+                        .userId("user-123")
+                        .email("user@test.com")
+                        .firstName("John")
+                        .lastName("Doe")
+                        .pilotCode("ANOTHER_PILOT")
+                        .enabled(false)
+                        .build();
+
+                given(userManagerService.retrieveUserById("user-123")).willReturn(notEnabledUser);
+
+                JwtAuthenticationToken jwtAuthenticationToken =
+                        new JwtAuthenticationToken(superAdminJwt, List.of(new SimpleGrantedAuthority("ROLE_SUPER_ADMIN")));
+                SecurityContextHolder.getContext().setAuthentication(jwtAuthenticationToken);
+
+                // When
+                ResultActions response = mockMvc.perform(post("/api/users/activation/email")
+                        .param("userId", "user-123")
+                        .contentType(MediaType.APPLICATION_JSON));
+
+                // Then
+                response.andExpect(status().isOk())
+                        .andExpect(jsonPath("$.success", is(true)))
+                        .andExpect(jsonPath("$.message", is("Activation email has been successfully sent to user")));
+
+                verify(userManagerService).retrieveUserById("user-123");
+                verify(userManagerService).updateActivationToken(eq("user-123"), anyString());
+                verify(emailService).sendActivationLink(eq("John Doe"), eq("user@test.com"), anyString());
+            }
+
+            @DisplayName("Resend Activation Email : Super Admin can access any organization")
+            @WithMockUser("SUPER_ADMIN")
+            @Test
+            void givenSuperAdminAndDifferentOrganization_whenResendActivationEmail_thenSuccess() throws Exception {
+                // Given
+                UserDto userFromDifferentOrg = UserDto.builder()
+                        .userId("user-456")
+                        .email("another@test.com")
+                        .firstName("Jane")
+                        .lastName("Smith")
+                        .pilotCode("DIFFERENT_PILOT")
+                        .enabled(false)
+                        .build();
+
+                given(userManagerService.retrieveUserById("user-456")).willReturn(userFromDifferentOrg);
+
+                JwtAuthenticationToken jwtAuthenticationToken =
+                        new JwtAuthenticationToken(superAdminJwt, List.of(new SimpleGrantedAuthority("ROLE_SUPER_ADMIN")));
+                SecurityContextHolder.getContext().setAuthentication(jwtAuthenticationToken);
+
+                // When
+                ResultActions response = mockMvc.perform(post("/api/users/activation/email")
+                        .param("userId", "user-456")
+                        .contentType(MediaType.APPLICATION_JSON));
+
+                // Then
+                response.andExpect(status().isOk())
+                        .andExpect(jsonPath("$.success", is(true)));
+
+                verify(userManagerService).updateActivationToken(eq("user-456"), anyString());
+            }
+        }
+
+        @Nested
+        @DisplayName("Admin Resend Activation Email Tests")
+        class AdminResendTests {
+
+            @DisplayName("Resend Activation Email : Success for Admin in same organization")
+            @WithMockUser("ADMIN")
+            @Test
+            void givenAdminAndSameOrganization_whenResendActivationEmail_thenSuccess() throws Exception {
+                // Given
+                UserDto userInSameOrg = UserDto.builder()
+                        .userId("user-789")
+                        .email("colleague@test.com")
+                        .firstName("Bob")
+                        .lastName("Johnson")
+                        .pilotCode("TEST")
+                        .enabled(false)
+                        .build();
+
+                given(userManagerService.retrieveUserById("user-789")).willReturn(userInSameOrg);
+
+                JwtAuthenticationToken jwtAuthenticationToken =
+                        new JwtAuthenticationToken(adminJwt, List.of(new SimpleGrantedAuthority("ROLE_ADMIN")));
+                SecurityContextHolder.getContext().setAuthentication(jwtAuthenticationToken);
+
+                // When
+                ResultActions response = mockMvc.perform(post("/api/users/activation/email")
+                        .param("userId", "user-789")
+                        .contentType(MediaType.APPLICATION_JSON));
+
+                // Then
+                response.andExpect(status().isOk())
+                        .andExpect(jsonPath("$.success", is(true)))
+                        .andExpect(jsonPath("$.message", is("Activation email has been successfully sent to user")));
+
+                verify(userManagerService).retrieveUserById("user-789");
+                verify(userManagerService).updateActivationToken(eq("user-789"), anyString());
+                verify(emailService).sendActivationLink(eq("Bob Johnson"), eq("colleague@test.com"), anyString());
+            }
+
+            @DisplayName("Resend Activation Email : Forbidden for Admin in different organization")
+            @WithMockUser("ADMIN")
+            @Test
+            void givenAdminAndDifferentOrganization_whenResendActivationEmail_thenForbidden() throws Exception {
+                // Given
+                UserDto userInDifferentOrg = UserDto.builder()
+                        .userId("user-999")
+                        .email("other@test.com")
+                        .firstName("Alice")
+                        .lastName("Williams")
+                        .pilotCode("ANOTHER_PILOT")
+                        .enabled(false)
+                        .build();
+
+                given(userManagerService.retrieveUserById("user-999")).willReturn(userInDifferentOrg);
+
+                JwtAuthenticationToken jwtAuthenticationToken =
+                        new JwtAuthenticationToken(adminJwt, List.of(new SimpleGrantedAuthority("ROLE_ADMIN")));
+                SecurityContextHolder.getContext().setAuthentication(jwtAuthenticationToken);
+
+                // When
+                ResultActions response = mockMvc.perform(post("/api/users/activation/email")
+                        .param("userId", "user-999")
+                        .contentType(MediaType.APPLICATION_JSON));
+
+                // Then
+                response.andExpect(status().isForbidden())
+                        .andExpect(jsonPath("$.success", is(false)))
+                        .andExpect(jsonPath("$.message", is("You are unauthorized to request/modify this resource")))
+                        .andExpect(jsonPath("$.errors", is("Admins can only resend activation emails to users inside their organization")));
+
+                verify(userManagerService).retrieveUserById("user-999");
+                verify(userManagerService, never()).updateActivationToken(anyString(), anyString());
+                verify(emailService, never()).sendActivationLink(anyString(), anyString(), anyString());
+            }
+
+            @DisplayName("Resend Activation Email : Conflict when user is already activated")
+            @WithMockUser("SUPER_ADMIN")
+            @Test
+            void givenAlreadyEnabledUser_whenResendActivationEmail_thenConflict() throws Exception {
+                UserDto enabledUser = UserDto.builder()
+                        .userId("user-enabled")
+                        .email("enabled@test.com")
+                        .firstName("Active")
+                        .lastName("User")
+                        .pilotCode("TEST")
+                        .enabled(true)
+                        .build();
+
+                given(userManagerService.retrieveUserById("user-enabled")).willReturn(enabledUser);
+
+                JwtAuthenticationToken jwtAuthenticationToken =
+                        new JwtAuthenticationToken(superAdminJwt, List.of(new SimpleGrantedAuthority("ROLE_SUPER_ADMIN")));
+                SecurityContextHolder.getContext().setAuthentication(jwtAuthenticationToken);
+
+                ResultActions response = mockMvc.perform(post("/api/users/activation/email")
+                        .param("userId", "user-enabled")
+                        .contentType(MediaType.APPLICATION_JSON));
+
+                response.andExpect(status().isConflict())
+                        .andExpect(jsonPath("$.success", is(false)))
+                        .andExpect(jsonPath("$.message", is("User is already activated. Activation email cannot be resent.")));
+
+                verify(userManagerService).retrieveUserById("user-enabled");
+                verify(userManagerService, never()).updateActivationToken(anyString(), anyString());
+                verify(emailService, never()).sendActivationLink(anyString(), anyString(), anyString());
+            }
+
+            @DisplayName("Resend Activation Email : Not Found when user does not exist")
+            @WithMockUser("SUPER_ADMIN")
+            @Test
+            void givenNonExistentUser_whenResendActivationEmail_thenNotFound() throws Exception {
+                given(userManagerService.retrieveUserById("non-existent")).willThrow(ResourceNotPresentException.class);
+
+                JwtAuthenticationToken jwtAuthenticationToken =
+                        new JwtAuthenticationToken(superAdminJwt, List.of(new SimpleGrantedAuthority("ROLE_SUPER_ADMIN")));
+                SecurityContextHolder.getContext().setAuthentication(jwtAuthenticationToken);
+
+                ResultActions response = mockMvc.perform(post("/api/users/activation/email")
+                        .param("userId", "non-existent")
+                        .contentType(MediaType.APPLICATION_JSON));
+
+                response.andExpect(status().isNotFound())
+                        .andExpect(jsonPath("$.success", is(false)))
+                        .andExpect(jsonPath("$.message", is("Resource not found")));
+
+                verify(userManagerService).retrieveUserById("non-existent");
+                verify(userManagerService, never()).updateActivationToken(anyString(), anyString());
+            }
+
+            @DisplayName("Resend Activation Email : Bad Request when userId parameter is missing")
+            @WithMockUser("SUPER_ADMIN")
+            @Test
+            void givenNoUserId_whenResendActivationEmail_thenBadRequest() throws Exception {
+                JwtAuthenticationToken jwtAuthenticationToken =
+                        new JwtAuthenticationToken(superAdminJwt, List.of(new SimpleGrantedAuthority("ROLE_SUPER_ADMIN")));
+                SecurityContextHolder.getContext().setAuthentication(jwtAuthenticationToken);
+
+                ResultActions response = mockMvc.perform(post("/api/users/activation/email")
+                        .contentType(MediaType.APPLICATION_JSON));
+
+                response.andExpect(status().isBadRequest())
+                        .andExpect(jsonPath("$.success", is(false)))
+                        .andExpect(jsonPath("$.message", is("Invalid / No input was given for requested resource")));
+
+                verify(userManagerService, never()).retrieveUserById(anyString());
+            }
         }
     }
 
@@ -852,6 +1078,7 @@ class UserControllerTests {
             String pilotRole = "PILOT";
             String userRole = "USER";
             String pilotCode = "TEST_PILOT";
+            String organizationId = "TEST_ORGANIZATION_ID";
 
             // Create a mock JWT with claims
             Jwt mockJwt = createMockJwtToken(userRole, pilotRole, pilotCode);
@@ -876,7 +1103,8 @@ class UserControllerTests {
                     .andExpect(jsonPath("$.data.lastName", Matchers.is("Test")))
                     .andExpect(jsonPath("$.data.pilotRole", Matchers.is(pilotRole)))
                     .andExpect(jsonPath("$.data.userRole", Matchers.is(userRole)))
-                    .andExpect(jsonPath("$.data.pilotCode", Matchers.is(pilotCode)));
+                    .andExpect(jsonPath("$.data.pilotCode", Matchers.is(pilotCode)))
+                    .andExpect(jsonPath("$.data.organizationId", Matchers.is(organizationId)));
         }
     }
 
@@ -893,6 +1121,7 @@ class UserControllerTests {
         claims.put("pilot_code", pilotCode);
         claims.put("pilot_role", pilotRole);
         claims.put("user_role", userRole);
+        claims.put("organization_id", "TEST_ORGANIZATION_ID");
         claims.put("family_name", "Test");
         claims.put("given_name", "Test");
         claims.put("email", "test@test.com");

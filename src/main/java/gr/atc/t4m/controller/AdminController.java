@@ -15,6 +15,7 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import jakarta.validation.Valid;
+import org.springframework.cache.CacheManager;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -34,14 +35,16 @@ public class AdminController {
      */
     private final IKeycloakAdminService adminService;
     private final IUserManagementService userManagementService;
+    private final CacheManager cacheManager;
 
     private static final String SUPER_ADMIN_ROLE = "SUPER_ADMIN";
     private static final String GLOBAL_PILOT_CODE = "ALL";
     private static final String DEFAULT_PILOT = "DEFAULT";
 
-    public AdminController(IKeycloakAdminService adminService, IUserManagementService userManagementService) {
+    public AdminController(IKeycloakAdminService adminService, IUserManagementService userManagementService, CacheManager cacheManager) {
         this.adminService = adminService;
         this.userManagementService = userManagementService;
+        this.cacheManager = cacheManager;
     }
 
     /*
@@ -385,4 +388,34 @@ public class AdminController {
         return new ResponseEntity<>(BaseAppResponse.success(null, "User role assigned successfully to pilot"), HttpStatus.OK);
     }
 
+    /*
+     * Cache Management
+     */
+
+    /**
+     * Force reset/clear all application caches
+     *
+     * @return Success message or Failure Message
+     */
+    @Operation(summary = "[SUPER_ADMIN] Force reset all application caches", security = @SecurityRequirement(name = "bearerToken"))
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "All caches cleared successfully"),
+            @ApiResponse(responseCode = "401", description = "Unauthorized request. Check token and try again. | Thrown when no JWT Token is provided as Bearer Token"),
+            @ApiResponse(responseCode = "403", description = "Invalid authorization parameters | Thrown when user can not access the specific resource")
+    })
+    @PreAuthorize("hasRole('SUPER_ADMIN')")
+    @Hidden
+    @DeleteMapping("/cache/reset")
+    public ResponseEntity<BaseAppResponse<Void>> resetAllCaches() {
+        // Get all cache names and clear each cache
+        cacheManager.getCacheNames()
+                .forEach(cacheName -> {
+                    var cache = cacheManager.getCache(cacheName);
+                    if (cache != null) {
+                        cache.clear();
+                    }
+                });
+
+        return new ResponseEntity<>(BaseAppResponse.success(null, "All caches cleared successfully"), HttpStatus.OK);
+    }
 }

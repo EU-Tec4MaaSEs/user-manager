@@ -5,12 +5,12 @@
 	<parent>
 		<groupId>org.springframework.boot</groupId>
 		<artifactId>spring-boot-starter-parent</artifactId>
-		<version>3.5.3</version>
+		<version>3.5.5</version>
 		<relativePath/> <!-- lookup parent from repository -->
 	</parent>
 	<groupId>gr.atc</groupId>
 	<artifactId>t4m-user-manager</artifactId>
-	<version>v0.5</version>
+	<version>v0.6</version>
 	<name>t4m-user-manager</name>
 	<description>Service to manage User and Roles in T4M project via Keycloak Resource Server</description>
 	<licenses>

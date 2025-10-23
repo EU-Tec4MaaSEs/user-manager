@@ -27,6 +27,7 @@ class JwtUtilsTests {
         claims.put("pilot_code", "TEST_PILOT");
         claims.put("pilot_role", "PILOT_ROLE_TEST");
         claims.put("user_role", "TEST_USER_ROLE");
+        claims.put("organization_id", "TEST_ORGANIZATION_ID");
 
         jwt = Jwt.withTokenValue(tokenValue)
                 .headers(header -> header.put("alg", "HS256"))
@@ -59,6 +60,33 @@ class JwtUtilsTests {
 
         // Then
         assertNull(pilotCode);
+    }
+
+    @DisplayName("Extract organization ID: Success")
+    @Test
+    void givenJwt_whenExtractOrganizationIdOfUser_thenReturnOrganizationId() {
+        // When
+        String organizationId = JwtUtils.extractOrganizationIdOfUser(jwt);
+
+        // Then
+        assertNotNull(organizationId);
+        assertEquals("TEST_ORGANIZATION_ID", organizationId);
+    }
+
+    @DisplayName("Extract organization ID: Null when no organization id field")
+    @Test
+    void givenJwtWithoutPilot_whenExtractOrganizationId_thenReturnNull() {
+        // Given
+        Jwt jwtWithoutPilot = Jwt.withTokenValue("token")
+                .headers(header -> header.put("alg", "HS256"))
+                .claims(claims -> claims.put("organization_id", null))
+                .build();
+
+        // When
+        String organizationId = JwtUtils.extractOrganizationIdOfUser(jwtWithoutPilot);
+
+        // Then
+        assertNull(organizationId);
     }
 
     @DisplayName("Extract user ID: Success")
