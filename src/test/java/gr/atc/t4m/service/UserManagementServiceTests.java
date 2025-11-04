@@ -160,7 +160,7 @@ class UserManagementServiceTests {
 
         @DisplayName("Delete User : Success")
         @Test
-        void givenUserId_whenDeleteUser_thenSuccess() throws Exception {
+        void givenUserId_whenDeleteUser_thenSuccess() {
             // Given
             UserRepresentation userRep = new UserRepresentation();
             userRep.setId(TEST_USER_ID);
@@ -182,7 +182,7 @@ class UserManagementServiceTests {
 
         @DisplayName("Delete User : User Not Found")
         @Test
-        void givenUserId_whenDeleteUser_thenUserNotFound() throws Exception {
+        void givenUserId_whenDeleteUser_thenUserNotFound() {
             // Given
             UserManagementService spyService = spy(userManagementService);
             doReturn(null).when(spyService).retrieveUserRepresentationById(TEST_USER_ID);
@@ -200,7 +200,7 @@ class UserManagementServiceTests {
 
         @DisplayName("Delete User : Keycloak Exception")
         @Test
-        void givenUserId_whenDeleteUser_thenKeycloakException() throws Exception {
+        void givenUserId_whenDeleteUser_thenKeycloakException() {
             // Given
             UserRepresentation userRep = new UserRepresentation();
             userRep.setId(TEST_USER_ID);
@@ -222,7 +222,7 @@ class UserManagementServiceTests {
 
         @DisplayName("Create User : Success")
         @Test
-        void createUser_Success() throws Exception {
+        void createUser_Success() {
             // Given
             UserCreationDto userCreationDto = createTestUserCreationDto();
             String activationToken = "test-token";
@@ -255,7 +255,7 @@ class UserManagementServiceTests {
 
         @DisplayName("Create User : User Already Exists")
         @Test
-        void givenUserData_whenCreateUser_thenUserAlreadyExists() throws Exception {
+        void givenUserData_whenCreateUser_thenUserAlreadyExists() {
             // Given
             UserCreationDto userCreationDto = createTestUserCreationDto();
             String activationToken = "test-token";
@@ -279,7 +279,7 @@ class UserManagementServiceTests {
 
         @DisplayName("Create User : Invalid Input Data / Resources not found in Keycloak")
         @Test
-        void givenInvalidUserData_whenCreateUser_thenThrowException() throws Exception {
+        void givenInvalidUserData_whenCreateUser_thenThrowException() {
             // Given
             UserCreationDto userCreationDto = createTestUserCreationDto();
             String activationToken = "test-token";
@@ -308,7 +308,7 @@ class UserManagementServiceTests {
 
         @DisplayName("Create User : Keycloak Creation Exception")
         @Test
-        void givenUserData_whenCreateUser_thenKeycloakCreationException() throws Exception {
+        void givenUserData_whenCreateUser_thenKeycloakCreationException() {
             // Given
             UserCreationDto userCreationDto = createTestUserCreationDto();
             String activationToken = "test-token";

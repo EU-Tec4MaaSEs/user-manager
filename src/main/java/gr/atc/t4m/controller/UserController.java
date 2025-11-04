@@ -1,12 +1,13 @@
 package gr.atc.t4m.controller;
 
+import gr.atc.t4m.context.JwtContext;
 import gr.atc.t4m.dto.UserDto;
 import gr.atc.t4m.dto.operations.PasswordsDto;
 import gr.atc.t4m.dto.operations.UserCreationDto;
 import gr.atc.t4m.service.interfaces.IEmailService;
 import gr.atc.t4m.service.interfaces.IUserAuthService;
 import gr.atc.t4m.service.interfaces.IUserManagementService;
-import gr.atc.t4m.util.JwtUtils;
+import gr.atc.t4m.util.StringNormalizationUtils;
 import gr.atc.t4m.validation.ValidPassword;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -14,8 +15,6 @@ import jakarta.validation.constraints.Email;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
-import org.springframework.security.core.annotation.AuthenticationPrincipal;
-import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.*;
 
 import gr.atc.t4m.dto.operations.AuthenticationResponseDto;
@@ -37,21 +36,18 @@ import java.util.UUID;
 public class UserController {
 
     private final IUserAuthService userAuthService;
-
     private final IUserManagementService userManagerService;
-
     private final IEmailService emailService;
+    private final JwtContext jwtContext;
 
-    private static final String USER_ROLE = "USER";
-    private static final String ADMIN_ROLE = "ADMIN";
-    private static final String SUPER_ADMIN_ROLE = "SUPER_ADMIN";
-    private static final String GLOBAL_PILOT_CODE = "ALL";
     private static final String UNAUTHORIZED_ACTION = "You are unauthorized to request/modify this resource";
 
-    public UserController(IUserAuthService userAuthService, IUserManagementService userManagerService, IEmailService emailService) {
+    public UserController(IUserAuthService userAuthService, IUserManagementService userManagerService,
+                         IEmailService emailService, JwtContext jwtContext) {
         this.userAuthService = userAuthService;
         this.userManagerService = userManagerService;
         this.emailService = emailService;
+        this.jwtContext = jwtContext;
     }
 
     /**
@@ -91,7 +87,6 @@ public class UserController {
     /**
      * Logout user
      *
-     * @param jwt : JWT Token
      * @return message of success or failure
      */
     @Operation(summary = "Logout user", security = @SecurityRequirement(name = "bearerToken"))
@@ -100,9 +95,8 @@ public class UserController {
                     @ApiResponse(responseCode = "401", description = "Unauthorized request. Check token and try again."),
             })
     @PostMapping(value = "/logout")
-    public ResponseEntity<BaseAppResponse<String>> logoutUser(@AuthenticationPrincipal Jwt jwt) {
-        String userId = JwtUtils.extractUserId(jwt);
-        userManagerService.logoutUser(userId);
+    public ResponseEntity<BaseAppResponse<String>> logoutUser() {
+        userManagerService.logoutUser(jwtContext.getUserId());
         return new ResponseEntity<>(BaseAppResponse.success(null, "User logged out successfully"),
                 HttpStatus.OK);
     }
@@ -114,7 +108,6 @@ public class UserController {
      * -  Super Admins can create personnel for all pilots and create new Super Admins also
      *
      * @param newUser : User information
-     * @param jwt     : JWT Token
      * @return message of success or failure
      */
     @Operation(summary = "Create a new user in Keycloak", security = @SecurityRequirement(name = "bearerToken"))
@@ -129,16 +122,13 @@ public class UserController {
     })
     @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'ADMIN')")
     @PostMapping(value = "/create")
-    public ResponseEntity<BaseAppResponse<String>> createUser(@RequestBody @Valid UserCreationDto newUser, @AuthenticationPrincipal Jwt jwt) {
-        String authorizeUserPilotRole = JwtUtils.extractPilotRole(jwt);
-        String authorizeUserPilotCode = JwtUtils.extractPilotCode(jwt);
-
+    public ResponseEntity<BaseAppResponse<String>> createUser(@RequestBody @Valid UserCreationDto newUser) {
         // Ensure that only Super Admins can create new Super Admins
-        if (newUser.pilotRole().equals(SUPER_ADMIN_ROLE) && !authorizeUserPilotRole.equalsIgnoreCase(SUPER_ADMIN_ROLE))
+        if ("SUPER_ADMIN".equals(newUser.pilotRole()) && !jwtContext.isSuperAdmin())
             return new ResponseEntity<>(BaseAppResponse.error(UNAUTHORIZED_ACTION, "Only Super Admins can create other Super Admin users"), HttpStatus.FORBIDDEN);
 
         // Ensure that Admins can create personnel only inside their organization
-        if (authorizeUserPilotRole.equals(ADMIN_ROLE) && !authorizeUserPilotCode.equalsIgnoreCase(newUser.pilotCode()))
+        if (jwtContext.isAdmin() && !StringNormalizationUtils.normalizedEquals(jwtContext.getPilotCode(), newUser.pilotCode()))
             return new ResponseEntity<>(BaseAppResponse.error(UNAUTHORIZED_ACTION, "Admins can only create personnel inside their organization"), HttpStatus.FORBIDDEN);
 
         // Generate the activation token and create User
@@ -161,7 +151,6 @@ public class UserController {
     /**
      * Re-send activation email for not enabled users
      *
-     * @param jwt : JWT Token
      * @param userId : User ID
      * @return Success message or Failure Message
      */
@@ -176,11 +165,7 @@ public class UserController {
     })
     @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'ADMIN')")
     @PostMapping("/activation/email")
-    public ResponseEntity<BaseAppResponse<Void>> resendActivationEmail(@AuthenticationPrincipal Jwt jwt, @RequestParam String userId) {
-        // Authorization checks
-        String authorizeUserPilotRole = JwtUtils.extractPilotRole(jwt);
-        String authorizeUserPilotCode = JwtUtils.extractPilotCode(jwt);
-
+    public ResponseEntity<BaseAppResponse<Void>> resendActivationEmail(@RequestParam String userId) {
         // Get existing user
         UserDto existingUser = userManagerService.retrieveUserById(userId);
 
@@ -192,7 +177,7 @@ public class UserController {
             );
 
         // Admins can only resend activation emails to users within their organization
-        if (authorizeUserPilotRole.equals(ADMIN_ROLE) && !authorizeUserPilotCode.equalsIgnoreCase(existingUser.getPilotCode()))
+        if (jwtContext.isAdmin() && !StringNormalizationUtils.normalizedEquals(jwtContext.getPilotCode(), existingUser.getPilotCode()))
             return new ResponseEntity<>(
                     BaseAppResponse.error(UNAUTHORIZED_ACTION,
                             "Admins can only resend activation emails to users inside their organization"),
@@ -251,7 +236,6 @@ public class UserController {
      * Update user's information in Keycloak
      *
      * @param updatedUserData: UserDTO Updated information
-     * @param jwt:             JWT Token
      * @return Message of success or failure
      */
     @Operation(summary = "Update user's information in Keycloak",
@@ -267,25 +251,20 @@ public class UserController {
     })
     @PutMapping(value = "/{userId}")
     public ResponseEntity<BaseAppResponse<String>> updateUser(@Valid @RequestBody UserDto updatedUserData,
-                                                              @AuthenticationPrincipal Jwt jwt,
                                                               @Parameter(name = "userId", required = true, description = "User ID to be updated") @PathVariable String userId) {
 
-        String jwtRole = JwtUtils.extractPilotRole(jwt);
-        String jwtPilot = JwtUtils.extractPilotCode(jwt);
-        String jwtUserId = JwtUtils.extractUserId(jwt);
-
         // Only Super-Admins can update a user to 'SUPER-ADMIN'
-        if (!jwtRole.equals(SUPER_ADMIN_ROLE) && updatedUserData.getPilotRole() != null && updatedUserData.getPilotRole().equalsIgnoreCase(SUPER_ADMIN_ROLE))
+        if (!jwtContext.isSuperAdmin() && updatedUserData.getPilotRole() != null && updatedUserData.getPilotRole().equalsIgnoreCase("SUPER_ADMIN"))
             return new ResponseEntity<>(BaseAppResponse.error(UNAUTHORIZED_ACTION, "Only user of type 'SUPER_ADMIN' can update a user to the 'SUPER_ADMIN' role"), HttpStatus.FORBIDDEN);
 
         // Users can only change their data
-        if (jwtRole.equalsIgnoreCase(USER_ROLE) && !jwtUserId.equalsIgnoreCase(userId))
+        if (jwtContext.isUser() && !jwtContext.getUserId().equalsIgnoreCase(userId))
             return new ResponseEntity<>(BaseAppResponse.error(UNAUTHORIZED_ACTION, "User of type 'USER' can only update their own data"), HttpStatus.FORBIDDEN);
 
         UserDto existingUser = userManagerService.retrieveUserById(userId);
 
         // Admins can only alter users inside their organization
-        if (jwtRole.equals(ADMIN_ROLE) && existingUser.getPilotCode() != null && !jwtPilot.equalsIgnoreCase(existingUser.getPilotCode()))
+        if (jwtContext.isAdmin() && existingUser.getPilotCode() != null && !StringNormalizationUtils.normalizedEquals(jwtContext.getPilotCode(), existingUser.getPilotCode()))
             return new ResponseEntity<>(BaseAppResponse.error(UNAUTHORIZED_ACTION, "User of type 'ADMIN' can only update user's inside their organization"), HttpStatus.FORBIDDEN);
 
         updatedUserData.setUserId(userId);
@@ -301,7 +280,6 @@ public class UserController {
      * Change user's password in Keycloak
      *
      * @param passwords: Old and New passwords
-     * @param jwt:       JWT Token
      * @return Message of success or failure
      */
     @Operation(summary = "Change user's password in Keycloak",
@@ -316,10 +294,9 @@ public class UserController {
             @ApiResponse(responseCode = "404", description = "Resource not found")
     })
     @PutMapping(value = "/change-password")
-    public ResponseEntity<BaseAppResponse<String>> changePassword(@Valid @RequestBody PasswordsDto passwords,
-                                                                  @AuthenticationPrincipal Jwt jwt) {
+    public ResponseEntity<BaseAppResponse<String>> changePassword(@Valid @RequestBody PasswordsDto passwords) {
 
-        String userId = JwtUtils.extractUserId(jwt);
+        String userId = jwtContext.getUserId();
         userManagerService.changePassword(passwords, userId);
         return new ResponseEntity<>(BaseAppResponse.success(null, "User's password updated successfully"), HttpStatus.OK);
     }
@@ -378,7 +355,6 @@ public class UserController {
     /**
      * Retrieve all users from Keycloak - Only for Super Admins / Pilot Admins
      *
-     * @param jwt: JWT Token
      * @return List<UserDTO>
      */
     @Operation(summary = "Retrieve all users from Keycloak",
@@ -390,14 +366,12 @@ public class UserController {
     })
     @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'ADMIN')")
     @GetMapping
-    public ResponseEntity<BaseAppResponse<List<UserDto>>> retrieveAllUsers(@AuthenticationPrincipal Jwt jwt) {
-        String pilot = JwtUtils.extractPilotCode(jwt);
-
+    public ResponseEntity<BaseAppResponse<List<UserDto>>> retrieveAllUsers() {
         List<UserDto> users;
-        if (pilot.equalsIgnoreCase(GLOBAL_PILOT_CODE))
+        if (jwtContext.hasGlobalAccess())
             users = userManagerService.retrieveAllUsers();
         else
-            users = userManagerService.retrieveUsersByPilotCode(pilot);
+            users = userManagerService.retrieveUsersByPilotCode(jwtContext.getPilotCode());
         return new ResponseEntity<>(BaseAppResponse.success(users, "Users retrieved successfully"), HttpStatus.OK);
     }
 
@@ -417,14 +391,14 @@ public class UserController {
     @PreAuthorize("hasRole('SUPER_ADMIN')")
     @GetMapping("/pilots/{pilotCode}")
     public ResponseEntity<BaseAppResponse<List<UserDto>>> retrieveAllUsersByPilotCode(@Parameter(name = "pilotCode", required = true, description = "Pilot Code") @PathVariable String pilotCode) {
-        List<UserDto> users = userManagerService.retrieveUsersByPilotCode(pilotCode.trim().toUpperCase());
-        return new ResponseEntity<>(BaseAppResponse.success(users, "Users for pilot '" + pilotCode + "' retrieved successfully"), HttpStatus.OK);
+        String normalizedPilotCode = StringNormalizationUtils.normalize(pilotCode);
+        List<UserDto> users = userManagerService.retrieveUsersByPilotCode(normalizedPilotCode);
+        return new ResponseEntity<>(BaseAppResponse.success(users, "Users for pilot '" + normalizedPilotCode + "' retrieved successfully"), HttpStatus.OK);
     }
 
     /**
      * GET all users associated with a Role
      *
-     * @param jwt : JWT Token
      * @param userRole : User Role
      * @return List<String> : List of User Roles
      */
@@ -440,17 +414,14 @@ public class UserController {
     })
     @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'ADMIN')")
     @GetMapping("/roles/{userRole}")
-    public ResponseEntity<BaseAppResponse<List<UserDto>>> retrieve(@AuthenticationPrincipal Jwt jwt,
-                                                                   @Parameter(name = "userRole",
+    public ResponseEntity<BaseAppResponse<List<UserDto>>> retrieveAllUsersByRole(@Parameter(name = "userRole",
                                                                            description = "User role existent in Keycloak",
                                                                            required = true)
                                                                    @PathVariable String userRole) {
 
-        String jwtPilotRole = JwtUtils.extractPilotRole(jwt);
-        String jwtPilot = JwtUtils.extractPilotCode(jwt);
-        String formattedInputUserRole = userRole.trim().toUpperCase();
+        String normalizedUserRole = StringNormalizationUtils.normalize(userRole);
 
-        return new ResponseEntity<>(BaseAppResponse.success(userManagerService.retrieveAllUsersByUserRole(jwtPilotRole, jwtPilot, formattedInputUserRole), "Users associated with the role retrieved successfully"), HttpStatus.OK);
+        return new ResponseEntity<>(BaseAppResponse.success(userManagerService.retrieveAllUsersByUserRole(jwtContext.getPilotRole(), jwtContext.getPilotCode(), normalizedUserRole), "Users associated with the role retrieved successfully"), HttpStatus.OK);
     }
 
     /**
@@ -470,15 +441,16 @@ public class UserController {
     @GetMapping("/pilots/{pilotCode}/roles/{userRole}")
     public ResponseEntity<BaseAppResponse<List<UserDto>>> retrieveAllUsersByPilotCodeAndUserRole(@Parameter(name = "pilotCode", required = true, description = "Pilot Code") @PathVariable String pilotCode,
                                                                                                  @Parameter(name = "userRole", required = true, description = "User Role") @PathVariable String userRole) {
-        List<UserDto> users = userManagerService.retrieveUsersByPilotCodeAndUserRole(pilotCode.trim().toUpperCase(), userRole.trim().toUpperCase());
-        return new ResponseEntity<>(BaseAppResponse.success(users, "Users for pilot '" + pilotCode + "' and user role '" + userRole + "' retrieved successfully"), HttpStatus.OK);
+        String normalizedPilotCode = StringNormalizationUtils.normalize(pilotCode);
+        String normalizedUserRole = StringNormalizationUtils.normalize(userRole);
+        List<UserDto> users = userManagerService.retrieveUsersByPilotCodeAndUserRole(normalizedPilotCode, normalizedUserRole);
+        return new ResponseEntity<>(BaseAppResponse.success(users, "Users for pilot '" + normalizedPilotCode + "' and user role '" + normalizedUserRole + "' retrieved successfully"), HttpStatus.OK);
     }
 
     /**
      * Search user by ID from Keycloak - Only for Super Admins / Pilot Admins
      *
      * @param userId: ID of the user
-     * @param jwt:    JWT Token
      * @return UserDTO
      */
     @Operation(summary = "Get a user by ID",
@@ -492,10 +464,11 @@ public class UserController {
     })
     @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'ADMIN')")
     @GetMapping("/{userId}")
-    public ResponseEntity<BaseAppResponse<UserDto>> retrieveUserById(@Parameter(name = "userId", required = true, description = "User's ID") @PathVariable String userId, @AuthenticationPrincipal Jwt jwt) {
-        String pilot = JwtUtils.extractPilotCode(jwt);
+    public ResponseEntity<BaseAppResponse<UserDto>> retrieveUserById(@Parameter(name = "userId", required = true, description = "User's ID") @PathVariable String userId) {
         UserDto user = userManagerService.retrieveUserById(userId);
-        if (!pilot.equalsIgnoreCase(user.getPilotCode()) && pilot.equalsIgnoreCase(ADMIN_ROLE))
+
+        // Admins can only retrieve users inside their organization
+        if (jwtContext.isAdmin() && !StringNormalizationUtils.normalizedEquals(jwtContext.getPilotCode(), user.getPilotCode()))
             return new ResponseEntity<>(BaseAppResponse.error(UNAUTHORIZED_ACTION, "User of type 'ADMIN' can only retrieve users information inside their organization"), HttpStatus.FORBIDDEN);
 
         return new ResponseEntity<>(BaseAppResponse.success(user, "User retrieved successfully"), HttpStatus.OK);
@@ -505,7 +478,6 @@ public class UserController {
      * Delete user from Keycloak - Only for Super Admins
      *
      * @param userId: ID of the user
-     * @param jwt:    JWT Token
      * @return Message of success or failure
      */
     @Operation(summary = "Delete a user by ID from Keycloak",
@@ -520,15 +492,12 @@ public class UserController {
     })
     @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'ADMIN')")
     @DeleteMapping("/{userId}")
-    public ResponseEntity<BaseAppResponse<String>> deleteUserById(@Parameter(name = "userId", required = true, description = "User's ID") @PathVariable String userId, @AuthenticationPrincipal Jwt jwt) {
-        String pilot = JwtUtils.extractPilotCode(jwt);
-        String pilotRole = JwtUtils.extractPilotRole(jwt);
-
+    public ResponseEntity<BaseAppResponse<String>> deleteUserById(@Parameter(name = "userId", required = true, description = "User's ID") @PathVariable String userId) {
         // Locate user
         UserDto existingUser = userManagerService.retrieveUserById(userId);
 
         // Validate that ADMIN users can only delete Users inside their plant
-        if (pilotRole.equalsIgnoreCase(ADMIN_ROLE) && !pilot.equalsIgnoreCase(existingUser.getPilotCode()))
+        if (jwtContext.isAdmin() && !StringNormalizationUtils.normalizedEquals(jwtContext.getPilotCode(), existingUser.getPilotCode()))
             return new ResponseEntity<>(BaseAppResponse.error(UNAUTHORIZED_ACTION, "User with type 'ADMIN' can only delete users inside their organization"), HttpStatus.FORBIDDEN);
 
         // Delete the User
@@ -539,7 +508,6 @@ public class UserController {
     /**
      * Return the authentication information of User based on the inserted token
      *
-     * @param jwt : JWT token
      * @return authentication information
      */
     @Operation(summary = "Retrieve User information based on the JWT token", security = @SecurityRequirement(name = "bearerToken"))
@@ -549,17 +517,17 @@ public class UserController {
             @ApiResponse(responseCode = "403", description = "Invalid JWT token attributes | Thrown when some attributes are missing from the JWT Token")
     })
     @GetMapping("/auth/info")
-    public ResponseEntity<BaseAppResponse<UserDto>> retrieveUserAuthInfo(@AuthenticationPrincipal Jwt jwt) {
+    public ResponseEntity<BaseAppResponse<UserDto>> retrieveUserAuthInfo() {
         UserDto currentUser = UserDto.builder()
-                .userId(JwtUtils.extractUserId(jwt))
-                .email(JwtUtils.extractUserEmail(jwt))
-                .username(JwtUtils.extractUsername(jwt))
-                .firstName(JwtUtils.extractUserFirstName(jwt))
-                .lastName(JwtUtils.extractUserLastName(jwt))
-                .pilotRole(JwtUtils.extractPilotRole(jwt))
-                .userRole(JwtUtils.extractUserRole(jwt))
-                .pilotCode(JwtUtils.extractPilotCode(jwt))
-                .organizationId(JwtUtils.extractOrganizationIdOfUser(jwt))
+                .userId(jwtContext.getUserId())
+                .email(jwtContext.getEmail())
+                .username(jwtContext.getUsername())
+                .firstName(jwtContext.getFirstName())
+                .lastName(jwtContext.getLastName())
+                .pilotRole(jwtContext.getPilotRole())
+                .userRole(jwtContext.getUserRole())
+                .pilotCode(jwtContext.getPilotCode())
+                .organizationId(jwtContext.getOrganizationId())
                 .build();
 
         return new ResponseEntity<>(BaseAppResponse.success(currentUser, "User information from given JWT Token retrieved successfully"), HttpStatus.OK);

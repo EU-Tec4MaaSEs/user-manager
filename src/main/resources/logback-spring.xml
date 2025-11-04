@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration>
+    <include resource="org/springframework/boot/logging/logback/defaults.xml"/>
+
+    <springProperty scope="context" name="tracingEnabled" source="observability.tracing-enabled" defaultValue="false"/>
+    <springProperty scope="context" name="applicationName" source="spring.application.name" defaultValue="application"/>
+
+    <!-- Console Appender with Conditional Pattern -->
+    <condition class="ch.qos.logback.core.boolex.PropertyEqualityCondition">
+        <key>property("tracingEnabled")</key>
+        <value>true</value>
+    </condition>
+    <if>
+        <then>
+            <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+                <encoder>
+                    <pattern>%green([%d{dd-MM-yyyy HH:mm:ss}]) %magenta([%thread]) %highlight(%-5level) %logger.%M [TraceID: %X{traceId}, SpanID: %X{spanId}] - %msg%n</pattern>
+                    <charset>UTF-8</charset>
+                </encoder>
+            </appender>
+        </then>
+        <else>
+            <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+                <encoder>
+                    <pattern>%green([%d{dd-MM-yyyy HH:mm:ss}]) %magenta([%thread]) %highlight(%-5level) %logger.%M - %msg%n</pattern>
+                    <charset>UTF-8</charset>
+                </encoder>
+            </appender>
+        </else>
+    </if>
+
+    <!-- Root Logger -->
+    <root level="INFO">
+        <appender-ref ref="CONSOLE"/>
+    </root>
+
+    <!-- Application Logger -->
+    <logger name="gr.atc.t4m" level="INFO" additivity="false">
+        <appender-ref ref="CONSOLE"/>
+    </logger>
+
+    <!-- Spring Security Logger -->
+    <logger name="org.springframework.security" level="INFO" additivity="false">
+        <appender-ref ref="CONSOLE"/>
+    </logger>
+
+    <!-- Suppress some loggers -->
+    <logger name="org.apache.kafka.clients" level="WARN"/>
+    <logger name="org.springframework.kafka" level="INFO"/>
+    <logger name="io.micrometer" level="WARN"/>
+    <logger name="org.apache.catalina" level="WARN"/>
+    <logger name="org.springframework.web" level="WARN"/>
+
+</configuration>

@@ -10,8 +10,7 @@ import org.springframework.http.*;
 import org.springframework.stereotype.Service;
 import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
-import org.springframework.web.client.RestClientException;
-import org.springframework.web.client.RestTemplate;
+import org.springframework.web.client.RestClient;
 
 import java.util.Map;
 import java.util.Optional;
@@ -26,14 +25,14 @@ public class UserAuthService implements IUserAuthService {
     private final String tokenUri;
     private final String clientName;
     private final String clientSecret;
+    private final RestClient restClient;
 
-    public UserAuthService(KeycloakProperties keycloakProperties) {
+    public UserAuthService(KeycloakProperties keycloakProperties, RestClient keycloakRestClient) {
         this.tokenUri = keycloakProperties.tokenUri();
         this.clientName = keycloakProperties.clientId();
         this.clientSecret = keycloakProperties.clientSecret();
+        this.restClient = keycloakRestClient;
     }
-
-    private final RestTemplate restTemplate = new RestTemplate();
 
     // Strings commonly used
     private static final String TOKEN = "access_token";
@@ -55,18 +54,18 @@ public class UserAuthService implements IUserAuthService {
     @Override
     public AuthenticationResponseDto authenticate(CredentialsDto credentials) {
         try {
-            HttpHeaders headers = new HttpHeaders();
-            headers.setContentType(MediaType.APPLICATION_FORM_URLENCODED);
+            MultiValueMap<String, String> body = buildAuthenticationBody(credentials, null);
 
-            HttpEntity<MultiValueMap<String, String>> entity = getMultiValueMapHttpEntity(credentials, null, headers);
-
-            ResponseEntity<Map<String, Object>> response = restTemplate.exchange(
-                    tokenUri, HttpMethod.POST, entity, new ParameterizedTypeReference<>() {
-                    });
+            Map<String, Object> response = restClient.post()
+                    .uri(tokenUri)
+                    .contentType(MediaType.APPLICATION_FORM_URLENCODED)
+                    .body(body)
+                    .retrieve()
+                    .body(new ParameterizedTypeReference<>() {});
 
             return parseAuthenticationResponse(response);
 
-        } catch (RestClientException e) {
+        } catch (Exception e) {
             log.error("Authentication failed: {}", e.getMessage(), e);
             throw new InvalidAuthenticationCredentialsException("Invalid credentials or authorization server error");
         }
@@ -82,34 +81,35 @@ public class UserAuthService implements IUserAuthService {
     @Override
     public AuthenticationResponseDto refreshToken(String refreshToken) {
         try {
-            HttpHeaders headers = new HttpHeaders();
-            headers.setContentType(MediaType.APPLICATION_FORM_URLENCODED);
+            MultiValueMap<String, String> body = buildAuthenticationBody(null, refreshToken);
 
-            HttpEntity<MultiValueMap<String, String>> entity = getMultiValueMapHttpEntity(null, refreshToken, headers);
-
-            ResponseEntity<Map<String, Object>> response = restTemplate.exchange(
-                    tokenUri, HttpMethod.POST, entity, new ParameterizedTypeReference<>() {
-                    });
+            Map<String, Object> response = restClient.post()
+                    .uri(tokenUri)
+                    .contentType(MediaType.APPLICATION_FORM_URLENCODED)
+                    .body(body)
+                    .retrieve()
+                    .body(new ParameterizedTypeReference<>() {});
 
             return parseAuthenticationResponse(response);
 
-        } catch (RestClientException e) {
+        } catch (Exception e) {
             log.error("Token refresh failed: {}", e.getMessage(), e);
             throw new InvalidRefreshTokenException("Refresh token is invalid or expired");
         }
     }
 
     /**
-     * Create the MultiValueMap for HttpEntity
+     * Build authentication request body for Keycloak token endpoint
      *
-     * @param credentials  : User Credentials (if exist)
-     * @param refreshToken : Refresh Token (if exist)
-     * @param headers      : Http Headers
-     * @return HttpEntity
+     * @param credentials  : User Credentials (for password grant)
+     * @param refreshToken : Refresh Token (for refresh token grant)
+     * @return MultiValueMap with request body parameters
      */
-    private HttpEntity<MultiValueMap<String, String>> getMultiValueMapHttpEntity(CredentialsDto credentials, String refreshToken, HttpHeaders headers) {
+    private MultiValueMap<String, String> buildAuthenticationBody(CredentialsDto credentials, String refreshToken) {
         MultiValueMap<String, String> body = new LinkedMultiValueMap<>();
+
         if (refreshToken == null) {
+            // Password grant type
             body.add(CLIENT_ID, clientName);
             body.add(CLIENT_SECRET, clientSecret);
             body.add(USERNAME, credentials.email());
@@ -117,6 +117,7 @@ public class UserAuthService implements IUserAuthService {
             body.add(GRANT_TYPE, GRANT_TYPE_PASSWORD);
             body.add(SCOPE, PROTOCOL);
         } else {
+            // Refresh token grant type
             body.add(GRANT_TYPE, GRANT_TYPE_REFRESH_TOKEN);
             body.add(GRANT_TYPE_REFRESH_TOKEN, refreshToken);
             body.add(CLIENT_ID, clientName);
@@ -124,18 +125,16 @@ public class UserAuthService implements IUserAuthService {
             body.add(SCOPE, PROTOCOL);
         }
 
-        return new HttpEntity<>(body, headers);
+        return body;
     }
 
     /**
      * Parse the authentication response and return an AuthenticationResponseDTO.
      *
-     * @param response : Response from Keycloak
+     * @param response : Response body from Keycloak
      */
-    private AuthenticationResponseDto parseAuthenticationResponse(ResponseEntity<Map<String, Object>> response) {
+    private AuthenticationResponseDto parseAuthenticationResponse(Map<String, Object> response) {
         return Optional.ofNullable(response)
-                .filter(resp -> resp.getStatusCode().is2xxSuccessful())
-                .map(ResponseEntity::getBody)
                 .filter(body -> body.get(TOKEN) != null)
                 .map(body -> AuthenticationResponseDto.builder()
                         .accessToken((String) body.get(TOKEN))
