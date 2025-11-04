@@ -32,6 +32,7 @@ build/
 ### VS Code ###
 .vscode/
 /src/main/resources/application-local.properties
+/src/main/resources/certs/**
 .env
 /keycloak
 docker-compose.yml
