@@ -1,6 +1,7 @@
 package gr.atc.t4m.controller;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import gr.atc.t4m.context.JwtContext;
 import gr.atc.t4m.dto.PilotDto;
 import gr.atc.t4m.dto.UserDto;
 import gr.atc.t4m.dto.UserRoleDto;
@@ -55,6 +56,9 @@ class AdminControllerTests {
 
     @MockitoBean
     private JwtDecoder jwtDecoder;
+
+    @MockitoBean
+    private JwtContext jwtContext;
 
     @MockitoBean
     private IKeycloakAdminService adminService;
@@ -218,7 +222,6 @@ class AdminControllerTests {
         @DisplayName("Update Pilot for Super Admin: Success")
         @Test
         void givenValidSuperAdminJwtAndPilotData_whenUpdatePilot_thenReturnSuccess() throws Exception {
-            // Given
             String pilotName = "TEST_PILOT";
             PilotDto pilotUpdateData = PilotDto.builder()
                     .name(pilotName)
@@ -227,18 +230,17 @@ class AdminControllerTests {
                     .dataSpaceConnectorUrl("https://updated.example.com/dsc")
                     .build();
 
-            // Mock JWT authentication
+            given(jwtContext.isSuperAdmin()).willReturn(true);
+
             JwtAuthenticationToken jwtAuthenticationToken = new JwtAuthenticationToken(superAdminJwt,
                     List.of(new SimpleGrantedAuthority("ROLE_SUPER_ADMIN")));
             SecurityContextHolder.getContext().setAuthentication(jwtAuthenticationToken);
 
-            // When
             ResultActions response = mockMvc.perform(MockMvcRequestBuilders.put("/api/admin/pilots/{pilotName}", pilotName)
                     .with(csrf())
                     .contentType(MediaType.APPLICATION_JSON)
                     .content(objectMapper.writeValueAsString(pilotUpdateData)));
 
-            // Then
             response.andExpect(status().isOk())
                     .andExpect(jsonPath("$.success", is(true)))
                     .andExpect(jsonPath("$.message", is("Pilot updated successfully")));
@@ -275,7 +277,6 @@ class AdminControllerTests {
         @DisplayName("Update Pilot by Admin of same pilot: Success")
         @Test
         void givenValidAdminJwtAndSamePilotData_whenUpdatePilot_thenReturnSuccess() throws Exception {
-            // Given
             String pilotName = "TEST";
             PilotDto pilotUpdateData = PilotDto.builder()
                     .name(pilotName)
@@ -290,20 +291,18 @@ class AdminControllerTests {
                     .pilotCode("TEST")
                     .build();
 
-            given(userManagementService.retrieveUserById(anyString())).willReturn(testUser);
+            given(jwtContext.isSuperAdmin()).willReturn(false);
+            given(jwtContext.getCurrentUser()).willReturn(testUser);
 
-            // Mock JWT authentication
             JwtAuthenticationToken jwtAuthenticationToken = new JwtAuthenticationToken(adminJwt,
                     List.of(new SimpleGrantedAuthority("ROLE_ADMIN")));
             SecurityContextHolder.getContext().setAuthentication(jwtAuthenticationToken);
 
-            // When
             ResultActions response = mockMvc.perform(MockMvcRequestBuilders.put("/api/admin/pilots/{pilotName}", pilotName)
                     .with(csrf())
                     .contentType(MediaType.APPLICATION_JSON)
                     .content(objectMapper.writeValueAsString(pilotUpdateData)));
 
-            // Then
             response.andExpect(status().isOk())
                     .andExpect(jsonPath("$.success", is(true)))
                     .andExpect(jsonPath("$.message", is("Pilot updated successfully")));
@@ -312,7 +311,6 @@ class AdminControllerTests {
         @DisplayName("Update Pilot by Admin of different pilot: Forbidden")
         @Test
         void givenValidAdminJwtAndDifferentPilotData_whenUpdatePilot_thenReturnForbidden() throws Exception {
-            // Given
             String pilotName = "DIFFERENT_PILOT";
             PilotDto pilotUpdateData = PilotDto.builder()
                     .name(pilotName)
@@ -322,23 +320,21 @@ class AdminControllerTests {
             UserDto testUser = UserDto.builder()
                     .userId("testUserId")
                     .email("admin@test.com")
-                    .pilotCode("TEST") // Different from the pilot being updated
+                    .pilotCode("TEST")
                     .build();
 
-            given(userManagementService.retrieveUserById(anyString())).willReturn(testUser);
+            given(jwtContext.isSuperAdmin()).willReturn(false);
+            given(jwtContext.getCurrentUser()).willReturn(testUser);
 
-            // Mock JWT authentication
             JwtAuthenticationToken jwtAuthenticationToken = new JwtAuthenticationToken(adminJwt,
                     List.of(new SimpleGrantedAuthority("ROLE_ADMIN")));
             SecurityContextHolder.getContext().setAuthentication(jwtAuthenticationToken);
 
-            // When
             ResultActions response = mockMvc.perform(MockMvcRequestBuilders.put("/api/admin/pilots/{pilotName}", pilotName)
                     .with(csrf())
                     .contentType(MediaType.APPLICATION_JSON)
                     .content(objectMapper.writeValueAsString(pilotUpdateData)));
 
-            // Then
             response.andExpect(status().isForbidden())
                     .andExpect(jsonPath("$.success", is(false)))
                     .andExpect(jsonPath("$.message", is("You are not authorized to update information on this pilot")));

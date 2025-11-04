@@ -2,7 +2,7 @@ package gr.atc.t4m.dto;
 
 import com.fasterxml.jackson.annotation.JsonFormat;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
-import gr.atc.t4m.dto.operations.OrganizationRegistrationDto;
+import gr.atc.t4m.dto.operations.OrganizationDataDto;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -28,6 +28,6 @@ public record EventDto(
 
         @Valid
         @NotNull(message = "Event data is required")
-        OrganizationRegistrationDto data
+        OrganizationDataDto data
 ) {}
 

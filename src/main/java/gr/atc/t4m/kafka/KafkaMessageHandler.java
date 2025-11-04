@@ -1,14 +1,17 @@
 package gr.atc.t4m.kafka;
 
 import gr.atc.t4m.dto.EventDto;
+import gr.atc.t4m.dto.PilotDto;
 import gr.atc.t4m.dto.UserDto;
 import gr.atc.t4m.dto.operations.PilotCreationDto;
+import gr.atc.t4m.enums.OrganizationEventType;
 import gr.atc.t4m.service.interfaces.IEmailService;
 import gr.atc.t4m.service.interfaces.IKeycloakAdminService;
 import gr.atc.t4m.service.interfaces.IUserManagementService;
 import jakarta.validation.Valid;
 import jakarta.validation.ValidationException;
 import lombok.extern.slf4j.Slf4j;
+import org.keycloak.representations.idm.GroupRepresentation;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.stereotype.Service;
 import gr.atc.t4m.exception.CustomExceptions.*;
@@ -42,13 +45,35 @@ public class KafkaMessageHandler {
     public void consume(@Valid EventDto event) {
         String globalName = event.data().name();
         String pilotName = String.join("-", globalName.trim().toUpperCase().split("\\s+"));
-        String organizationId = event.data().id();
+        String eventType = event.type();
 
+        OrganizationEventType eventTypeEnum = OrganizationEventType.fromString(eventType);
+        if (eventTypeEnum == null) {
+            log.warn("Invalid Event Type provided: {}. Discarding incoming Event.", eventType);
+            return;
+        }
+
+        // Handle incoming event based on its type
+        switch(eventTypeEnum) {
+            case ORGANIZATION_ONBOARDING -> handleOrganizationCreation(event, pilotName);
+            case ORGANIZATION_DELETED -> handleOrganizationDeletion(pilotName);
+            case ORGANIZATION_UPDATED -> handleOrganizationUpdate(event, pilotName);
+        }
+    }
+
+    /**
+     * Handle Creation of new Organization in Keycloak
+     *
+     * @param event : Kafka Event
+     * @param pilotName : Formatted Pilot Name
+     */
+    private void handleOrganizationCreation(EventDto event, String pilotName){
+        String organizationId = event.data().id();
         try {
             // Create the record
             PilotCreationDto newPilot = PilotCreationDto.builder()
                     .name(pilotName)
-                    .globalName(globalName)
+                    .globalName(event.data().name())
                     .subGroups(List.of("ADMIN", "USER"))
                     .verifiableCredential(event.data().verifiableCredential())
                     .roles(event.data().role())
@@ -86,7 +111,45 @@ public class KafkaMessageHandler {
         // Send email after successful operation
         String fullName = buildFullName(existingUser.getFirstName(), existingUser.getLastName())
                 .orElse("User");
-        emailService.sendOrganizationRegistrationEmail(fullName, existingUser.getEmail(), globalName);
+        emailService.sendOrganizationRegistrationEmail(fullName, existingUser.getEmail(), event.data().name());
+    }
+
+    /**
+     * Handle Deletion of an Organization from Keycloak
+     *
+     * @param pilotName : Formatted Pilot Name
+     */
+    private void handleOrganizationDeletion(String pilotName){
+        keycloakAdminService.deletePilotByName(pilotName);
+    }
+
+    /**
+     * Handle Update of an existing Organization in Keycloak
+     *
+     * @param event : Kafka Event
+     * @param pilotName : Formatted Pilot Name
+     */
+    private void handleOrganizationUpdate(EventDto event, String pilotName){
+        String organizationId = event.data().id();
+        try {
+            GroupRepresentation existingGroup = keycloakAdminService.retrieveGroupRepresentationByOrganizationId(event.data().id());
+            if (existingGroup == null){
+                log.warn("Pilot with name '{}' does not exist in Identity Manager. Discarding incoming Event.", pilotName);
+                return;
+            }
+
+            PilotDto existingPilot = PilotDto.fromGroupRepresentation(existingGroup);
+            existingPilot.setName(pilotName);
+            existingPilot.setGlobalName(event.data().name());
+            existingPilot.setVerifiableCredential(event.data().verifiableCredential());
+            existingPilot.setRoles(event.data().role());
+            existingPilot.setDataSpaceConnectorUrl(event.data().dataSpaceConnectorUrl());
+            existingPilot.setOrganizationId(organizationId);
+
+            keycloakAdminService.updatePilotByName(existingPilot);
+        } catch (KeycloakException | ResourceAlreadyExistsException e){
+            log.error("Unable to update existing organization in Keycloak - Error: {}", e.getMessage());
+        }
     }
 
    /*

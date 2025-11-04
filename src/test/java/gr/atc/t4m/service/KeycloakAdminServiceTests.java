@@ -5,6 +5,7 @@ import gr.atc.t4m.dto.PilotDto;
 import gr.atc.t4m.dto.UserRoleDto;
 import gr.atc.t4m.dto.operations.PilotCreationDto;
 import gr.atc.t4m.dto.operations.UserRoleCreationDto;
+import gr.atc.t4m.enums.OrganizationDataFields;
 import gr.atc.t4m.enums.T4mRole;
 import gr.atc.t4m.events.OrganizationDeletionEvent;
 import jakarta.ws.rs.core.Response;
@@ -276,6 +277,21 @@ class KeycloakAdminServiceTests {
             GroupRepresentation result = adminService.retrieveSubgroupRepresentationByName(parentGroupId, subGroupName);
 
             assertNull(result); // we expect null on error
+        }
+
+        @DisplayName("Retrieve Group by Organization ID attribute : Success")
+        @Test
+        void givenGroupOrganizationId_whenGroupExists_thenReturnGroupRepresentation() {
+            GroupRepresentation group = new GroupRepresentation();
+            group.setName(TEST_GROUP_NAME);
+            group.setAttributes(Map.of(OrganizationDataFields.ORGANIZATION_ID.toString(), List.of("test-org-id")));
+
+            when(groupsResource.groups(any(), any(), any(), anyBoolean())).thenReturn(List.of(group));
+
+            GroupRepresentation result = adminService.retrieveGroupRepresentationByOrganizationId("test-org-id");
+
+            assertNotNull(result);
+            assertEquals("test-org-id", result.getAttributes().get(OrganizationDataFields.ORGANIZATION_ID.toString()).getFirst());
         }
 
         @DisplayName("Create Pilot : Success")

@@ -18,6 +18,8 @@ public interface IKeycloakAdminService {
 
     GroupRepresentation retrieveGroupRepresentationByName(String groupName);
 
+    GroupRepresentation retrieveGroupRepresentationByOrganizationId(String organizationId);
+
     GroupRepresentation retrieveSubgroupRepresentationByName(String parentGroupId, String subGroupName);
 
     void createPilot(PilotCreationDto newPilot);

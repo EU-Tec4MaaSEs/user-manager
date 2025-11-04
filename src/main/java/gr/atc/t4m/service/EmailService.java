@@ -2,6 +2,7 @@ package gr.atc.t4m.service;
 
 import gr.atc.t4m.config.properties.EmailProperties;
 import gr.atc.t4m.service.interfaces.IEmailService;
+import io.micrometer.observation.annotation.Observed;
 import jakarta.mail.MessagingException;
 import jakarta.mail.internet.MimeMessage;
 import lombok.extern.slf4j.Slf4j;
@@ -151,6 +152,7 @@ public class EmailService implements IEmailService {
      * @param activationToken : Token to activate user
      * @return CompletableFuture<Void>
      */
+    @Observed(name = "email.send-activation", contextualName = "sending-activation-email")
     @Override
     @Async("taskExecutor")
     public CompletableFuture<Void> sendActivationLink(String fullName, String email, String activationToken) {
@@ -175,6 +177,7 @@ public class EmailService implements IEmailService {
      * @param resetToken : Token to reset the password
      * @return CompletableFuture<Void>
      */
+    @Observed(name = "email.send-password-reset", contextualName = "sending-password-reset-email")
     @Override
     @Async("taskExecutor")
     public CompletableFuture<Void> sendResetPasswordLink(String fullName, String email, String resetToken) {
@@ -199,6 +202,7 @@ public class EmailService implements IEmailService {
      * @param email : Email of the user
      * @param organizationName : Name of the organization
      */
+    @Observed(name = "email.send-organization-registration", contextualName = "sending-organization-registration-email")
     @Override
     public void sendOrganizationRegistrationEmail(String fullName, String email, String organizationName) {
         String htmlContent = String.format(ORGANIZATION_REGISTRATION_EMAIL, fullName, organizationName, dashboardUrl);
