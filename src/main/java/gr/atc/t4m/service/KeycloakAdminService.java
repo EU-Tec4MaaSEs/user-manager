@@ -8,8 +8,10 @@ import static gr.atc.t4m.exception.CustomExceptions.*;
 
 import gr.atc.t4m.dto.operations.UserRoleCreationDto;
 import gr.atc.t4m.config.properties.KeycloakProperties;
+import gr.atc.t4m.enums.OrganizationDataFields;
 import gr.atc.t4m.events.OrganizationDeletionEvent;
 import gr.atc.t4m.service.interfaces.IKeycloakAdminService;
+import io.micrometer.observation.annotation.Observed;
 import jakarta.ws.rs.core.Response;
 import lombok.extern.slf4j.Slf4j;
 import org.keycloak.admin.client.Keycloak;
@@ -17,6 +19,7 @@ import org.keycloak.representations.idm.*;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
+import org.springframework.cache.annotation.Caching;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.context.event.EventListener;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -122,6 +125,31 @@ public class KeycloakAdminService implements IKeycloakAdminService {
     }
 
     /**
+     * Retrieve Group / Pilot by Organization ID stored in Attributes
+     *
+     * @param organizationId : Organization ID
+     * @return GroupRepresentation
+     */
+    @Override
+    public GroupRepresentation retrieveGroupRepresentationByOrganizationId(String organizationId) {
+        List<GroupRepresentation> groups = retrieveAllGroupRepresentations();
+
+        return groups.stream()
+                .filter(group -> {
+                    Map<String, List<String>> attributes = group.getAttributes();
+
+                    if (attributes != null && !attributes.isEmpty() && attributes.containsKey(OrganizationDataFields.ORGANIZATION_ID.toString())) {
+                        List<String> organizationIds = attributes.get(OrganizationDataFields.ORGANIZATION_ID.toString());
+                        return organizationIds != null && organizationIds.contains(organizationId);
+                    }
+
+                    return false;
+                })
+                .findFirst()
+                .orElse(null);
+    }
+
+    /**
      * Retrieve Group / Pilot by Name
      *
      * @param parentGroupId : Parent Group ID
@@ -152,6 +180,7 @@ public class KeycloakAdminService implements IKeycloakAdminService {
      * @throws ResourceAlreadyExistsException : Thrown if Pilot already exists
      * @throws KeycloakException              : Thrown if Error creating Pilot
      */
+    @Observed(name = "pilot.create", contextualName = "creating-pilot")
     @Override
     @CacheEvict(value = "pilotCodes", allEntries = true)
     public void createPilot(PilotCreationDto newPilot) {
@@ -221,6 +250,7 @@ public class KeycloakAdminService implements IKeycloakAdminService {
      * @throws ResourceNotPresentException : Thrown if Pilot not found
      * @throws KeycloakException           : Thrown if Error deleting Pilot
      */
+    @Observed(name = "pilot.delete", contextualName = "deleting-pilot")
     @Override
     @CacheEvict(value = "pilotCodes", allEntries = true)
     public void deletePilotByName(String pilot) {
@@ -292,6 +322,7 @@ public class KeycloakAdminService implements IKeycloakAdminService {
      *
      * @param pilotData : Pilot Data
      */
+    @Observed(name = "pilot.update", contextualName = "updating-pilot")
     @Override
     @CacheEvict(value = "pilotCodes", allEntries = true)
     public void updatePilotByName(PilotDto pilotData) {
@@ -551,6 +582,7 @@ public class KeycloakAdminService implements IKeycloakAdminService {
      * @throws ResourceNotPresentException : Thrown if User Role not found
      */
     @Override
+    @Cacheable(value = "userRoles", key = "#userRole")
     public UserRoleDto retrieveUserRoleByName(String userRole) {
         RoleRepresentation existingRepresentation = retrieveClientRoleRepresentationByName(userRole.toUpperCase());
         if (existingRepresentation == null)
@@ -566,8 +598,19 @@ public class KeycloakAdminService implements IKeycloakAdminService {
      * @throws ResourceAlreadyExistsException : Thrown if User Role already exists in Keycloak
      * @throws KeycloakException              : Thrown if Error creating User Role in Keycloak
      */
+    @Observed(name = "user-role.create", contextualName = "creating-user-role")
     @Override
-    @CacheEvict(value = "userRoles", allEntries = true)
+    @Caching(evict = {
+            @CacheEvict(value = "userRoles", key = "true"),
+            @CacheEvict(value = "userRoles", key = "false"),
+            // Evict specific pilotCode key if exists
+            @CacheEvict(value = "userRoles", key = "#newUserRole.pilotCode()", condition = "#newUserRole.pilotCode() != null"),
+            // Evict specific pilotRole key if exists
+            @CacheEvict(value = "userRoles", key = "#newUserRole.pilotRole()", condition = "#newUserRole.pilotRole() != null"),
+            // Evict specific pilotRole::pilotCode combination if both exist
+            @CacheEvict(value = "userRoles", key = "#newUserRole.pilotRole() + '::' + #newUserRole.pilotCode()",
+                        condition = "#newUserRole.pilotRole() != null && #newUserRole.pilotCode() != null")
+    })
     public void createUserRole(UserRoleCreationDto newUserRole) {
         RoleRepresentation existingRepresentation = retrieveClientRoleRepresentationByName(newUserRole.name().toUpperCase());
         if (existingRepresentation != null)
@@ -583,6 +626,7 @@ public class KeycloakAdminService implements IKeycloakAdminService {
                     .get(retrieveClientId())
                     .roles()
                     .create(newRoleRepresentation);
+            log.debug("User role '{}' created successfully", newUserRole.name());
         } catch (Exception e) {
             log.error("Unable to create new User Role - Error: {}", e.getMessage());
             throw new KeycloakException("Unable to create new User Role", e);
@@ -597,8 +641,15 @@ public class KeycloakAdminService implements IKeycloakAdminService {
      * @throws ResourceNotPresentException : Thrown if User Role not found
      * @throws KeycloakException           : Thrown if Error deleting User Role in Keycloak
      */
+    @Observed(name = "user-role.delete", contextualName = "deleting-user-role")
     @Override
-    @CacheEvict(value = "userRoles", allEntries = true)
+    @Caching(evict = {
+            // Evict both isSuperAdmin keys (true/false) since the list changes
+            @CacheEvict(value = "userRoles", key = "true"),
+            @CacheEvict(value = "userRoles", key = "false"),
+            // Evict the specific userRole by name
+            @CacheEvict(value = "userRoles", key = "#userRole")
+    })
     public void deleteUserRole(String userRole) {
         RoleRepresentation existingRepresentation = retrieveClientRoleRepresentationByName(userRole.toUpperCase());
         if (existingRepresentation == null)
@@ -611,6 +662,7 @@ public class KeycloakAdminService implements IKeycloakAdminService {
                     .roles()
                     .get(existingRepresentation.getName())
                     .remove();
+            log.debug("User role '{}' deleted successfully", userRole);
         } catch (Exception e) {
             log.error("Unable to delete User Role - Error: {}", e.getMessage());
             throw new KeycloakException("Unable to delete User Role", e);
@@ -622,8 +674,20 @@ public class KeycloakAdminService implements IKeycloakAdminService {
      *
      * @param updatedUserRole : Updated User Role data
      */
+    @Observed(name = "user-role.update", contextualName = "updating-user-role")
     @Override
-    @CacheEvict(value = "userRoles", allEntries = true)
+    @Caching(evict = {
+            // Evict both isSuperAdmin keys
+            @CacheEvict(value = "userRoles", key = "true"),
+            @CacheEvict(value = "userRoles", key = "false"),
+            // Evict the specific userRole by name
+            @CacheEvict(value = "userRoles", key = "#updatedUserRole.getName()", condition = "#updatedUserRole.getName() != null"),
+            // Evict old attribute-based keys
+            @CacheEvict(value = "userRoles", key = "#updatedUserRole.getPilotCode()", condition = "#updatedUserRole.getPilotCode() != null", beforeInvocation = true),
+            @CacheEvict(value = "userRoles", key = "#updatedUserRole.getPilotRole()", condition = "#updatedUserRole.getPilotRole() != null", beforeInvocation = true),
+            @CacheEvict(value = "userRoles", key = "#updatedUserRole.getPilotRole() + '::' + #updatedUserRole.getPilotCode()",
+                        condition = "#updatedUserRole.getPilotRole() != null && #updatedUserRole.getPilotCode() != null", beforeInvocation = true)
+    })
     public void updateUserRole(UserRoleDto updatedUserRole) {
         String userRole = updatedUserRole.getName();
         RoleRepresentation existingRepresentation = retrieveClientRoleRepresentationByName(userRole);
@@ -638,6 +702,7 @@ public class KeycloakAdminService implements IKeycloakAdminService {
                     .roles()
                     .get(existingRepresentation.getName())
                     .update(updatedRoleRepresentation);
+            log.debug("User role '{}' updated successfully", userRole);
         } catch (Exception e) {
             log.error("Unable to update User Role - Error: {}", e.getMessage());
             throw new KeycloakException("Unable to update User Role", e);

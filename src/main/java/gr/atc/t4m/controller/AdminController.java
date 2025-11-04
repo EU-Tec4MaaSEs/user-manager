@@ -1,13 +1,13 @@
 package gr.atc.t4m.controller;
 
+import gr.atc.t4m.context.JwtContext;
 import gr.atc.t4m.dto.PilotDto;
 import gr.atc.t4m.dto.UserDto;
 import gr.atc.t4m.dto.UserRoleDto;
 import gr.atc.t4m.dto.operations.PilotCreationDto;
 import gr.atc.t4m.dto.operations.UserRoleCreationDto;
 import gr.atc.t4m.service.interfaces.IKeycloakAdminService;
-import gr.atc.t4m.service.interfaces.IUserManagementService;
-import gr.atc.t4m.util.JwtUtils;
+import gr.atc.t4m.util.StringNormalizationUtils;
 import io.swagger.v3.oas.annotations.Hidden;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -19,8 +19,6 @@ import org.springframework.cache.CacheManager;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
-import org.springframework.security.core.annotation.AuthenticationPrincipal;
-import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -34,16 +32,14 @@ public class AdminController {
      * User Roles : Roles of user within the organization (Specific roles)
      */
     private final IKeycloakAdminService adminService;
-    private final IUserManagementService userManagementService;
+    private final JwtContext jwtContext;
     private final CacheManager cacheManager;
 
-    private static final String SUPER_ADMIN_ROLE = "SUPER_ADMIN";
-    private static final String GLOBAL_PILOT_CODE = "ALL";
     private static final String DEFAULT_PILOT = "DEFAULT";
 
-    public AdminController(IKeycloakAdminService adminService, IUserManagementService userManagementService, CacheManager cacheManager) {
+    public AdminController(IKeycloakAdminService adminService, JwtContext jwtContext, CacheManager cacheManager) {
         this.adminService = adminService;
-        this.userManagementService = userManagementService;
+        this.jwtContext = jwtContext;
         this.cacheManager = cacheManager;
     }
 
@@ -54,7 +50,6 @@ public class AdminController {
     /**
      * GET all System Roles or filter by Pilot (Based on the provided Pilot Role via JWT Token)
      *
-     * @param jwt : JWT Token
      * @return List<String> : List of Pilot Roles
      */
     @Operation(summary = "Retrieve all pilot roles (System generic roles)", security = @SecurityRequirement(name = "bearerToken"))
@@ -67,12 +62,8 @@ public class AdminController {
     })
     @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'ADMIN')")
     @GetMapping("/system/roles")
-    public ResponseEntity<BaseAppResponse<List<String>>> retrieveAllSystemRoles(@AuthenticationPrincipal Jwt jwt) {
-        // Validate token proper format
-        String role = JwtUtils.extractPilotRole(jwt);
-
-        // Set the flag to true or false according to the Role of User
-        boolean isSuperAdmin = role.equalsIgnoreCase(SUPER_ADMIN_ROLE);
+    public ResponseEntity<BaseAppResponse<List<String>>> retrieveAllSystemRoles() {
+        boolean isSuperAdmin = jwtContext.isSuperAdmin();
 
         return new ResponseEntity<>(BaseAppResponse.success(adminService.retrieveAllPilotRoles(isSuperAdmin), "Pilot/System roles retrieved successfully"), HttpStatus.OK);
     }
@@ -142,11 +133,13 @@ public class AdminController {
             description = "Name of the Pilot",
             example = "Test_Pilot",
             required = true) @PathVariable String pilotName) {
-        if (pilotName.equalsIgnoreCase(DEFAULT_PILOT))
+        String normalizedPilotName = StringNormalizationUtils.normalize(pilotName);
+
+        if (DEFAULT_PILOT.equals(normalizedPilotName))
             return new ResponseEntity<>(BaseAppResponse.error("Default organization can not be deleted"), HttpStatus.BAD_REQUEST);
 
         // Delete Pilot in Keycloak
-        adminService.deletePilotByName(pilotName.trim().toUpperCase());
+        adminService.deletePilotByName(normalizedPilotName);
         return new ResponseEntity<>(BaseAppResponse.success(null, "Pilot deleted successfully"), HttpStatus.OK);
     }
 
@@ -165,27 +158,25 @@ public class AdminController {
     })
     @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'ADMIN')")
     @PutMapping("/pilots/{pilotName}")
-    public ResponseEntity<BaseAppResponse<Void>> updatePilot(@AuthenticationPrincipal Jwt jwt,
-                                                              @Parameter(name = "pilotName",
+    public ResponseEntity<BaseAppResponse<Void>> updatePilot(@Parameter(name = "pilotName",
                                                                       description = "Name of the Pilot",
                                                                       required = true) @PathVariable String pilotName,
                                                               @Parameter(name = "pilotData",
                                                                       description = "Updated pilot information - Not all fields required",
                                                                       required = true) @Valid @RequestBody PilotDto pilotData) {
-        if (pilotName.equalsIgnoreCase(DEFAULT_PILOT))
+        String normalizedPilotName = StringNormalizationUtils.normalize(pilotName);
+
+        if (DEFAULT_PILOT.equals(normalizedPilotName))
             return new ResponseEntity<>(BaseAppResponse.error("Default organization can not be updated"), HttpStatus.BAD_REQUEST);
 
-        String pilotRole = JwtUtils.extractPilotRole(jwt);
-
-        // Check if the user is a Super Admin
-        if (!pilotRole.equalsIgnoreCase(SUPER_ADMIN_ROLE)) {
-            String userId = JwtUtils.extractUserId(jwt);
-            UserDto user = userManagementService.retrieveUserById(userId);
-            if (!user.getPilotCode().equalsIgnoreCase(pilotName.trim().toUpperCase())) {
+        // Check if the user is a Super Admin - if not, verify they can only update their own pilot
+        if (!jwtContext.isSuperAdmin()) {
+            UserDto user = jwtContext.getCurrentUser(); // Cached - single Keycloak call per request
+            if (!StringNormalizationUtils.normalizedEquals(user.getPilotCode(), normalizedPilotName)) {
                 return new ResponseEntity<>(BaseAppResponse.error("You are not authorized to update information on this pilot"), HttpStatus.FORBIDDEN);
             }
         }
-        pilotData.setName(pilotName.trim().toUpperCase());
+        pilotData.setName(normalizedPilotName);
 
         // Update Pilot in Keycloak
         adminService.updatePilotByName(pilotData);
@@ -200,7 +191,6 @@ public class AdminController {
     /**
      * Create a new User Role in Keycloak
      *
-     * @param jwt : JWT Token
      * @return Success message or Failure Message
      */
     @Operation(summary = "Create a new User Role", security = @SecurityRequirement(name = "bearerToken"))
@@ -213,7 +203,7 @@ public class AdminController {
     })
     @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'ADMIN')")
     @PostMapping("/roles/create")
-    public ResponseEntity<BaseAppResponse<Void>> createNewUserRole(@AuthenticationPrincipal Jwt jwt, @Valid @RequestBody UserRoleCreationDto userRole) {
+    public ResponseEntity<BaseAppResponse<Void>> createNewUserRole(@Valid @RequestBody UserRoleCreationDto userRole) {
         // Create User Role in Keycloak
         adminService.createUserRole(userRole);
         return new ResponseEntity<>(BaseAppResponse.success(null, "User role created successfully"), HttpStatus.CREATED);
@@ -222,7 +212,6 @@ public class AdminController {
     /**
      * Delete a User Role in Keycloak
      *
-     * @param jwt      : JWT Token
      * @param roleName : Name of the Role
      * @return Success message or Failure Message
      */
@@ -236,20 +225,19 @@ public class AdminController {
     })
     @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'ADMIN')")
     @DeleteMapping("/roles/{roleName}")
-    public ResponseEntity<BaseAppResponse<Void>> deleteUserRole(@AuthenticationPrincipal Jwt jwt, @Parameter(
+    public ResponseEntity<BaseAppResponse<Void>> deleteUserRole(@Parameter(
             name = "roleName",
             description = "Name of the role",
             example = "Test_User_Role",
             required = true) @PathVariable String roleName) {
         // Delete a User Role in Keycloak
-        adminService.deleteUserRole(roleName.trim().toUpperCase());
+        adminService.deleteUserRole(StringNormalizationUtils.normalize(roleName));
         return new ResponseEntity<>(BaseAppResponse.success(null, "User role deleted successfully"), HttpStatus.OK);
     }
 
     /**
      * Retrieve a User Role in Keycloak
      *
-     * @param jwt      : JWT Token
      * @param roleName : Name of the Role
      * @return UserRoleDTO
      */
@@ -264,16 +252,15 @@ public class AdminController {
     })
     @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'ADMIN')")
     @GetMapping("/roles/{roleName}")
-    public ResponseEntity<BaseAppResponse<UserRoleDto>> retrieveUserRole(@AuthenticationPrincipal Jwt jwt, @PathVariable String roleName) {
+    public ResponseEntity<BaseAppResponse<UserRoleDto>> retrieveUserRole(@PathVariable String roleName) {
         // Fetch User Role given the Role Name (if exists)
-        UserRoleDto userRole = adminService.retrieveUserRoleByName(roleName.trim().toUpperCase());
+        UserRoleDto userRole = adminService.retrieveUserRoleByName(StringNormalizationUtils.normalize(roleName));
         return new ResponseEntity<>(BaseAppResponse.success(userRole, "User role retrieved successfully"), HttpStatus.OK);
     }
 
     /**
      * Update a User Role in Keycloak
      *
-     * @param jwt      : JWT Token
      * @param roleName : Name of the Role
      * @return Success message or Failure Message
      */
@@ -288,15 +275,14 @@ public class AdminController {
     })
     @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'ADMIN')")
     @PutMapping("/roles/{roleName}")
-    public ResponseEntity<BaseAppResponse<Void>> updateUserRole(@AuthenticationPrincipal Jwt jwt,
-                                                                @Parameter(name = "roleName",
+    public ResponseEntity<BaseAppResponse<Void>> updateUserRole(@Parameter(name = "roleName",
                                                                         description = "Name of the role",
                                                                         required = true) @PathVariable String roleName,
                                                                 @Parameter(name = "userRole",
                                                                         description = "Updated user role information - Not all fields required",
                                                                         required = true) @Valid @RequestBody UserRoleDto userRole) {
-        // If name was given convert it to upper case if not already defined that way
-        userRole.setName(roleName.trim().toUpperCase());
+        // Normalize and set the role name
+        userRole.setName(StringNormalizationUtils.normalize(roleName));
 
         // Create User Role in Keycloak
         adminService.updateUserRole(userRole);
@@ -306,7 +292,6 @@ public class AdminController {
     /**
      * GET all Keycloak User Roles
      *
-     * @param jwt : JWT Token
      * @return List<UserRoleDTO> : List of User Roles
      */
     @Operation(summary = "Retrieve all user roles from Keycloak", security = @SecurityRequirement(name = "bearerToken"))
@@ -319,9 +304,8 @@ public class AdminController {
     })
     @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'ADMIN')")
     @GetMapping("/roles")
-    public ResponseEntity<BaseAppResponse<List<UserRoleDto>>> retrieveAllUserRoles(@AuthenticationPrincipal Jwt jwt) {
-        String pilotRole = JwtUtils.extractPilotRole(jwt);
-        boolean isSuperAdmin = pilotRole.equalsIgnoreCase(SUPER_ADMIN_ROLE);
+    public ResponseEntity<BaseAppResponse<List<UserRoleDto>>> retrieveAllUserRoles() {
+        boolean isSuperAdmin = jwtContext.isSuperAdmin();
 
         return new ResponseEntity<>(BaseAppResponse.success(adminService.retrieveAllUserRoles(isSuperAdmin), "User roles retrieved successfully"), HttpStatus.OK);
     }
@@ -329,7 +313,6 @@ public class AdminController {
     /**
      * GET all Keycloak User Roles filtered by Pilot Role
      *
-     * @param jwt       : JWT Token
      * @param pilotRole : Pilot Role
      * @return List<String> : List of User Roles
      */
@@ -343,18 +326,17 @@ public class AdminController {
     })
     @Hidden
     @GetMapping("/roles/type/{pilotRole}")
-    public ResponseEntity<BaseAppResponse<List<String>>> retrieveAllUserRolesPerPilotRole(@AuthenticationPrincipal Jwt jwt,
-                                                                                          @Parameter(name = "pilotRole",
+    public ResponseEntity<BaseAppResponse<List<String>>> retrieveAllUserRolesPerPilotRole(@Parameter(name = "pilotRole",
                                                                                                   description = "Pilot role existent in Keycloak",
                                                                                                   required = true)
                                                                                           @PathVariable String pilotRole) {
-        String pilot = JwtUtils.extractPilotCode(jwt);
+        String normalizedPilotRole = StringNormalizationUtils.normalize(pilotRole);
 
         List<String> userRoles;
-        if (pilot.equalsIgnoreCase(GLOBAL_PILOT_CODE))
-            userRoles = adminService.retrieveAllUserRolesByType(pilotRole.trim().toUpperCase());
+        if (jwtContext.hasGlobalAccess())
+            userRoles = adminService.retrieveAllUserRolesByType(normalizedPilotRole);
         else
-            userRoles = adminService.retrieveAllUserRolesByTypeAndPilot(pilotRole.trim().toUpperCase(), pilot.trim().toUpperCase());
+            userRoles = adminService.retrieveAllUserRolesByTypeAndPilot(normalizedPilotRole, jwtContext.getPilotCode());
 
         return new ResponseEntity<>(BaseAppResponse.success(userRoles, "User roles retrieved successfully"), HttpStatus.OK);
     }
@@ -364,7 +346,6 @@ public class AdminController {
      *
      * @param pilotCode : Pilot Code
      * @param userRole  : User Role to assign
-     * @param jwt       : JWT Token
      * @return Success message or Failure Message
      */
     @Operation(summary = "Assign User Role to specific Pilot / Organization", security = @SecurityRequirement(name = "bearerToken"))
@@ -379,12 +360,12 @@ public class AdminController {
     @Hidden
     @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'ADMIN')")
     @PutMapping("/pilots/{pilotCode}/assign/roles/{userRole}")
-    public ResponseEntity<BaseAppResponse<Void>> assignUserRoleToPilot(@AuthenticationPrincipal Jwt jwt, @PathVariable String pilotCode, @PathVariable String userRole) {
-        String formattedInputUserRole = userRole.trim().toUpperCase();
-        String formattedInputPilotCode = pilotCode.trim().toUpperCase();
+    public ResponseEntity<BaseAppResponse<Void>> assignUserRoleToPilot(@PathVariable String pilotCode, @PathVariable String userRole) {
+        String normalizedUserRole = StringNormalizationUtils.normalize(userRole);
+        String normalizedPilotCode = StringNormalizationUtils.normalize(pilotCode);
 
         // Assign User Role to Pilot
-        adminService.assignUserRoleToPilot(formattedInputUserRole, formattedInputPilotCode);
+        adminService.assignUserRoleToPilot(normalizedUserRole, normalizedPilotCode);
         return new ResponseEntity<>(BaseAppResponse.success(null, "User role assigned successfully to pilot"), HttpStatus.OK);
     }
 

@@ -7,7 +7,7 @@ import jakarta.validation.constraints.NotEmpty;
 
 import java.util.Set;
 
-public record OrganizationRegistrationDto(
+public record OrganizationDataDto(
 
         @NotBlank(message = "Organization ID cannot be empty")
         String id,
