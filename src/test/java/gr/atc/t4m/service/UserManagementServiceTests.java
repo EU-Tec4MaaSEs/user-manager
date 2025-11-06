@@ -19,10 +19,7 @@ import org.keycloak.admin.client.resource.*;
 import org.keycloak.admin.client.token.TokenManager;
 import org.keycloak.representations.AccessTokenResponse;
 import org.keycloak.representations.idm.*;
-import org.mockito.ArgumentCaptor;
-import org.mockito.InjectMocks;
-import org.mockito.Mock;
-import org.mockito.MockedStatic;
+import org.mockito.*;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.test.util.ReflectionTestUtils;
 
@@ -453,29 +450,36 @@ class UserManagementServiceTests {
 
             UserRepresentation existingUser = new UserRepresentation();
             existingUser.setId(userId);
-            existingUser.setEnabled(false); // User is not yet activated
+            existingUser.setEnabled(false);
 
             Map<String, List<String>> attributes = new HashMap<>();
             attributes.put(ACTIVATION_TOKEN, List.of(activationToken));
-            attributes.put(ACTIVATION_EXPIRY, List.of(String.valueOf(System.currentTimeMillis() + 3600000))); // 1 hour from now
+            attributes.put(ACTIVATION_EXPIRY, List.of(String.valueOf(System.currentTimeMillis() + 3600000)));
             existingUser.setAttributes(attributes);
 
             UserManagementService spyService = spy(userManagementService);
             doReturn(existingUser).when(spyService).retrieveUserRepresentationById(userId);
-            doNothing().when(spyService).updateUser(any(UserDto.class));
+            when(keycloak.realm(TEST_REALM)).thenReturn(realmResource);
+            when(realmResource.users()).thenReturn(usersResource);
+            when(usersResource.get(userId)).thenReturn(userResource);
+            doNothing().when(userResource).resetPassword(any(CredentialRepresentation.class));
+            doNothing().when(userResource).update(any(UserRepresentation.class));
 
             // When
             spyService.activateUser(userId, activationToken, password);
 
             // Then
-            ArgumentCaptor<UserDto> userDtoCaptor = ArgumentCaptor.forClass(UserDto.class);
-            verify(spyService).updateUser(userDtoCaptor.capture());
-
-            UserDto capturedUserDto = userDtoCaptor.getValue();
-            assertEquals(userId, capturedUserDto.getUserId());
-            assertEquals(password, capturedUserDto.getPassword());
-            assertTrue(capturedUserDto.isTokenFlagRaised());
-            assertEquals(activationToken, capturedUserDto.getActivationToken());
+            InOrder inOrder = inOrder(userResource);
+            inOrder.verify(userResource).update(argThat(user ->
+                    user.isEnabled() &&
+                    !user.getAttributes().containsKey(ACTIVATION_TOKEN) &&
+                    !user.getAttributes().containsKey(ACTIVATION_EXPIRY)
+            ));
+            inOrder.verify(userResource).resetPassword(argThat(cred ->
+                    cred.getType().equals(CredentialRepresentation.PASSWORD) &&
+                            cred.getValue().equals(password) &&
+                            !cred.isTemporary()
+            ));
         }
 
         @DisplayName("Activate User : User Not Found")
@@ -496,7 +500,6 @@ class UserManagementServiceTests {
             );
 
             assertEquals("User with id " + userId + " not found", exception.getMessage());
-            verify(spyService, never()).updateUser(any(UserDto.class));
         }
 
         @DisplayName("Activate User : User Already Active")
@@ -509,7 +512,7 @@ class UserManagementServiceTests {
 
             UserRepresentation existingUser = new UserRepresentation();
             existingUser.setId(userId);
-            existingUser.setEnabled(true); // User is already active
+            existingUser.setEnabled(true);
 
             UserManagementService spyService = spy(userManagementService);
             doReturn(existingUser).when(spyService).retrieveUserRepresentationById(userId);
@@ -521,7 +524,6 @@ class UserManagementServiceTests {
             );
 
             assertEquals("User is already active", exception.getMessage());
-            verify(spyService, never()).updateUser(any(UserDto.class));
         }
 
         @DisplayName("Activate User : Missing Attributes")
@@ -851,7 +853,7 @@ class UserManagementServiceTests {
 
         @DisplayName("Reset Password : Success")
         @Test
-        void givenValidResetToken_whenResetPassword_thenUpdateUserCalled() {
+        void givenValidResetToken_whenResetPassword_thenPasswordReset() {
             Map<String, List<String>> attributes = new HashMap<>();
             attributes.put("reset_token", List.of("valid-token"));
 
@@ -863,13 +865,24 @@ class UserManagementServiceTests {
 
             UserManagementService spyService = spy(userManagementService);
             doReturn(user).when(spyService).retrieveUserRepresentationById(TEST_USER_ID);
-            doNothing().when(spyService).updateUser(any(UserDto.class));
+            when(keycloak.realm(TEST_REALM)).thenReturn(realmResource);
+            when(realmResource.users()).thenReturn(usersResource);
+            when(usersResource.get(TEST_USER_ID)).thenReturn(userResource);
+            doNothing().when(userResource).update(any(UserRepresentation.class));
+            doNothing().when(userResource).resetPassword(any(CredentialRepresentation.class));
 
             // When
             spyService.resetPassword(TEST_USER_ID, "valid-token", "new-password");
 
             // Then
-            verify(spyService).updateUser(any(UserDto.class));
+            verify(userResource).update(argThat(u ->
+                    !u.getAttributes().containsKey("reset_token")
+            ));
+            verify(userResource).resetPassword(argThat(cred ->
+                    cred.getType().equals(CredentialRepresentation.PASSWORD) &&
+                    cred.getValue().equals("new-password") &&
+                    !cred.isTemporary()
+            ));
         }
 
         @DisplayName("Reset Password : User Not Found")
