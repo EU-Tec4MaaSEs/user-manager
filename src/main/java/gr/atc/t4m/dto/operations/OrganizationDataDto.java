@@ -15,17 +15,13 @@ public record OrganizationDataDto(
         @NotBlank(message = "Organization name cannot be empty")
         String name,
 
-        @Email(message = "Email should be valid")
         @NotBlank(message = "Contact cannot be empty")
         String contact,
 
-        @NotEmpty(message = "Organization description cannot be empty")
         Set<T4mRole> role,
 
-        @NotBlank(message = "Data Space Connector URL cannot be empty")
         String dataSpaceConnectorUrl,
 
-        @NotBlank(message = "Verifiable Credential cannot be empty")
         String verifiableCredential,
 
         @NotBlank(message = "User ID cannot be empty")
