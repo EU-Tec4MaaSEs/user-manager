@@ -1,7 +1,15 @@
 package gr.atc.t4m.dto;
 
+import java.util.HashMap;
+import java.util.List;
+import java.util.Optional;
+
+import org.keycloak.representations.idm.CredentialRepresentation;
+import org.keycloak.representations.idm.UserRepresentation;
+
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
+
 import gr.atc.t4m.dto.operations.UserCreationDto;
 import gr.atc.t4m.validation.ValidPassword;
 import gr.atc.t4m.validation.ValidPilotRole;
@@ -11,12 +19,6 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-import org.keycloak.representations.idm.CredentialRepresentation;
-import org.keycloak.representations.idm.UserRepresentation;
-
-import java.util.HashMap;
-import java.util.List;
-import java.util.Optional;
 
 @Data
 @Builder
@@ -31,6 +33,7 @@ public class UserDto {
     private static final String RESET_TOKEN = "reset_token";
     private static final String ACTIVATION_EXPIRY = "activation_expiry";
     private static final String SUPER_ADMIN_PILOT = "ALL";
+    private static final String DEFAULT_ORGANIZATION = "DEFAULT";
 
     @JsonProperty("userId")
     private String userId;
@@ -217,7 +220,9 @@ public class UserDto {
             keycloakUser.getAttributes().put(PILOT_ROLE, List.of(user.getPilotRole()));
         }
 
-        if (user.getOrganizationId() != null)
+        if (user.getOrganizationId() != null && user.getOrganizationId().equalsIgnoreCase(DEFAULT_ORGANIZATION))
+            keycloakUser.getAttributes().remove(ORGANIZATION_ID);
+        else if (user.getOrganizationId() != null)
             keycloakUser.getAttributes().put(ORGANIZATION_ID, List.of(user.getOrganizationId()));
 
         String finalPilotRole = user.getPilotRole() != null

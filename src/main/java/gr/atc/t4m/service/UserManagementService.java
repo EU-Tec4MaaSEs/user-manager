@@ -1,11 +1,36 @@
 package gr.atc.t4m.service;
 
+import java.util.List;
+import java.util.UUID;
+import java.util.concurrent.TimeUnit;
+
+import org.keycloak.admin.client.Keycloak;
+import org.keycloak.admin.client.KeycloakBuilder;
+import org.keycloak.admin.client.resource.UserResource;
+import org.keycloak.representations.idm.CredentialRepresentation;
+import org.keycloak.representations.idm.GroupRepresentation;
+import org.keycloak.representations.idm.RoleRepresentation;
+import org.keycloak.representations.idm.UserRepresentation;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
+import org.springframework.cache.annotation.Caching;
+import org.springframework.scheduling.annotation.Async;
+import org.springframework.stereotype.Service;
+
+import gr.atc.t4m.config.properties.KeycloakProperties;
 import gr.atc.t4m.dto.PilotDto;
 import gr.atc.t4m.dto.UserDto;
 import gr.atc.t4m.dto.UserRoleDto;
 import gr.atc.t4m.dto.operations.PasswordsDto;
 import gr.atc.t4m.dto.operations.UserCreationDto;
-import gr.atc.t4m.config.properties.KeycloakProperties;
+import gr.atc.t4m.exception.CustomExceptions.ForbiddenAccessException;
+import gr.atc.t4m.exception.CustomExceptions.InvalidActivationAttributesException;
+import gr.atc.t4m.exception.CustomExceptions.InvalidPasswordException;
+import gr.atc.t4m.exception.CustomExceptions.InvalidRefreshTokenException;
+import gr.atc.t4m.exception.CustomExceptions.KeycloakException;
+import gr.atc.t4m.exception.CustomExceptions.ResourceAlreadyExistsException;
+import gr.atc.t4m.exception.CustomExceptions.ResourceNotPresentException;
+import gr.atc.t4m.exception.CustomExceptions.UserActivateStatusException;
 import gr.atc.t4m.service.interfaces.IEmailService;
 import gr.atc.t4m.service.interfaces.IKeycloakAdminService;
 import gr.atc.t4m.service.interfaces.IUserManagementService;
@@ -15,25 +40,6 @@ import jakarta.validation.ValidationException;
 import jakarta.ws.rs.NotFoundException;
 import jakarta.ws.rs.core.Response;
 import lombok.extern.slf4j.Slf4j;
-import org.keycloak.admin.client.Keycloak;
-import org.keycloak.admin.client.KeycloakBuilder;
-import org.keycloak.admin.client.resource.UserResource;
-import org.keycloak.representations.idm.CredentialRepresentation;
-import org.keycloak.representations.idm.GroupRepresentation;
-import org.keycloak.representations.idm.RoleRepresentation;
-import org.keycloak.representations.idm.UserRepresentation;
-import org.springframework.cache.annotation.CacheEvict;
-import org.springframework.cache.annotation.CachePut;
-import org.springframework.cache.annotation.Cacheable;
-import org.springframework.cache.annotation.Caching;
-import org.springframework.scheduling.annotation.Async;
-import org.springframework.stereotype.Service;
-
-import java.util.List;
-import java.util.UUID;
-import java.util.concurrent.TimeUnit;
-
-import static gr.atc.t4m.exception.CustomExceptions.*;
 
 @Service
 @Slf4j

@@ -1,15 +1,16 @@
 package gr.atc.t4m.events;
 
 
-import gr.atc.t4m.dto.UserDto;
-import gr.atc.t4m.service.interfaces.IUserManagementService;
+import java.util.List;
+
 import org.springframework.context.event.EventListener;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Component;
+
+import gr.atc.t4m.dto.UserDto;
+import gr.atc.t4m.service.interfaces.IUserManagementService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-
-import java.util.List;
 
 /**
  * Handles application events
@@ -39,6 +40,7 @@ public class AppEventListener {
                 .filter(user -> pilot.equalsIgnoreCase(user.getPilotCode()))
                 .forEach(user -> {
                     user.setPilotCode(DEFAULT_ORGANIZATION);
+                    user.setOrganizationId(DEFAULT_ORGANIZATION);
                     userManagementService.updateUser(user);
                     log.debug("Unassigned pilot {} from user {} with ID: {}", pilot, user.getUsername(), user.getUserId());
                 });
