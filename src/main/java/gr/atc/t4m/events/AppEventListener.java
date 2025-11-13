@@ -39,6 +39,7 @@ public class AppEventListener {
                 .filter(user -> pilot.equalsIgnoreCase(user.getPilotCode()))
                 .forEach(user -> {
                     user.setPilotCode(DEFAULT_ORGANIZATION);
+                    user.setOrganizationId(DEFAULT_ORGANIZATION);
                     userManagementService.updateUser(user);
                     log.debug("Unassigned pilot {} from user {} with ID: {}", pilot, user.getUsername(), user.getUserId());
                 });
