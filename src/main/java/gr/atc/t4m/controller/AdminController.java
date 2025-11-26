@@ -178,10 +178,11 @@ public class AdminController {
                 return new ResponseEntity<>(BaseAppResponse.error("You are not authorized to update information on this pilot"), HttpStatus.FORBIDDEN);
             }
         }
-        pilotData.setName(normalizedPilotName);
+        if (pilotData.getName() != null)
+            pilotData.setName(StringNormalizationUtils.normalize(pilotData.getName()));
 
         // Update Pilot in Keycloak
-        adminService.updatePilotByName(pilotData);
+        adminService.updatePilotByName(pilotData, normalizedPilotName);
         return new ResponseEntity<>(BaseAppResponse.success(null, "Pilot updated successfully"), HttpStatus.OK);
     }
 

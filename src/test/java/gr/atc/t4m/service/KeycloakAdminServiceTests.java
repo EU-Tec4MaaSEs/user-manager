@@ -421,7 +421,7 @@ class KeycloakAdminServiceTests {
             when(groupsResource.groups(any(), any(), any(), anyBoolean())).thenReturn(List.of(existingGroup));
             when(groupsResource.group(TEST_GROUP_ID)).thenReturn(groupResource);
 
-            adminService.updatePilotByName(pilotDto);
+            adminService.updatePilotByName(pilotDto, TEST_GROUP_NAME);
 
             verify(groupResource).update(argThat(gr -> "Updated Global Name".equals(gr.getAttributes().get("GLOBAL_NAME").getFirst())));
         }
@@ -435,7 +435,7 @@ class KeycloakAdminServiceTests {
 
             when(groupsResource.groups(any(), any(), any(), anyBoolean())).thenReturn(List.of());
 
-            assertThrows(KeycloakException.class, () -> adminService.updatePilotByName(pilotDto));
+            assertThrows(KeycloakException.class, () -> adminService.updatePilotByName(pilotDto, TEST_GROUP_NAME));
         }
 
         @DisplayName("Update Pilot : Keycloak Error")
@@ -453,7 +453,7 @@ class KeycloakAdminServiceTests {
             when(groupsResource.group(TEST_GROUP_ID)).thenReturn(groupResource);
             doThrow(new RuntimeException("Keycloak error")).when(groupResource).update(any());
 
-            assertThrows(KeycloakException.class, () -> adminService.updatePilotByName(pilotDto));
+            assertThrows(KeycloakException.class, () -> adminService.updatePilotByName(pilotDto, TEST_GROUP_NAME));
         }
 
         @DisplayName("Assign User Role to Pilot : Success")

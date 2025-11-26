@@ -138,16 +138,17 @@ public class KafkaMessageHandler {
                 return;
             }
 
-            PilotDto existingPilot = PilotDto.fromGroupRepresentation(existingGroup);
-            existingPilot.setName(pilotName);
-            existingPilot.setGlobalName(event.data().name());
-            existingPilot.setVerifiableCredential(event.data().verifiableCredential());
-            existingPilot.setRoles(event.data().role());
-            existingPilot.setDataSpaceConnectorUrl(event.data().dataSpaceConnectorUrl());
-            existingPilot.setOrganizationId(organizationId);
+            String existingName = existingGroup.getName();
+            PilotDto updatedPilotData = PilotDto.fromGroupRepresentation(existingGroup);
+            updatedPilotData.setName(pilotName);
+            updatedPilotData.setGlobalName(event.data().name());
+            updatedPilotData.setVerifiableCredential(event.data().verifiableCredential());
+            updatedPilotData.setRoles(event.data().role());
+            updatedPilotData.setDataSpaceConnectorUrl(event.data().dataSpaceConnectorUrl());
+            updatedPilotData.setOrganizationId(organizationId);
 
-            keycloakAdminService.updatePilotByName(existingPilot);
-        } catch (KeycloakException | ResourceAlreadyExistsException e){
+            keycloakAdminService.updatePilotByName(updatedPilotData, existingName);
+        } catch (KeycloakException | ResourceAlreadyExistsException | ResourceNotPresentException e){
             log.error("Unable to update existing organization in Keycloak - Error: {}", e.getMessage());
         }
     }
