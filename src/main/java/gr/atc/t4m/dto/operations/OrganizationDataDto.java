@@ -1,9 +1,9 @@
 package gr.atc.t4m.dto.operations;
 
-import java.util.Set;
-
 import gr.atc.t4m.enums.T4mRole;
 import jakarta.validation.constraints.NotBlank;
+
+import java.util.Set;
 
 public record OrganizationDataDto(
 

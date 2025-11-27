@@ -1,15 +1,7 @@
 package gr.atc.t4m.dto;
 
-import java.util.HashMap;
-import java.util.List;
-import java.util.Optional;
-
-import org.keycloak.representations.idm.CredentialRepresentation;
-import org.keycloak.representations.idm.UserRepresentation;
-
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
-
 import gr.atc.t4m.dto.operations.UserCreationDto;
 import gr.atc.t4m.validation.ValidPassword;
 import gr.atc.t4m.validation.ValidPilotRole;
@@ -19,6 +11,12 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import org.keycloak.representations.idm.CredentialRepresentation;
+import org.keycloak.representations.idm.UserRepresentation;
+
+import java.util.HashMap;
+import java.util.List;
+import java.util.Optional;
 
 @Data
 @Builder

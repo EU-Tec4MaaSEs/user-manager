@@ -28,7 +28,7 @@ public interface IKeycloakAdminService {
 
     void assignUserRoleToPilot(String userRole, String pilotCode);
 
-    void updatePilotByName(PilotDto pilotData);
+    void updatePilotByName(PilotDto pilotData, String pilotName);
 
     /*---------------------
      * Realm Management

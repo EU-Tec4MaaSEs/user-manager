@@ -1,16 +1,15 @@
 package gr.atc.t4m.events;
 
 
-import java.util.List;
-
+import gr.atc.t4m.dto.UserDto;
+import gr.atc.t4m.service.interfaces.IUserManagementService;
 import org.springframework.context.event.EventListener;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Component;
-
-import gr.atc.t4m.dto.UserDto;
-import gr.atc.t4m.service.interfaces.IUserManagementService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+
+import java.util.List;
 
 /**
  * Handles application events

@@ -433,7 +433,7 @@ class KafkaMessageHandlerTests {
 
             // Then
             verify(keycloakAdminService).retrieveGroupRepresentationByOrganizationId("pilot123");
-            verify(keycloakAdminService, never()).updatePilotByName(any(PilotDto.class));
+            verify(keycloakAdminService, never()).updatePilotByName(any(PilotDto.class), anyString());
         }
 
         @Test
@@ -468,7 +468,7 @@ class KafkaMessageHandlerTests {
 
             // Then
             verify(keycloakAdminService).retrieveGroupRepresentationByOrganizationId("pilot123");
-            verify(keycloakAdminService, never()).updatePilotByName(any(PilotDto.class));
+            verify(keycloakAdminService, never()).updatePilotByName(any(PilotDto.class), anyString());
         }
     }
 
@@ -506,7 +506,7 @@ class KafkaMessageHandlerTests {
             // Then - No service methods should be called
             verify(keycloakAdminService, never()).createPilot(any(PilotCreationDto.class));
             verify(keycloakAdminService, never()).deletePilotByName(anyString());
-            verify(keycloakAdminService, never()).updatePilotByName(any(PilotDto.class));
+            verify(keycloakAdminService, never()).updatePilotByName(any(PilotDto.class), anyString());
             verify(userManagementService, never()).retrieveUserById(anyString());
             verify(emailService, never()).sendOrganizationRegistrationEmail(anyString(), anyString(), anyString());
         }
@@ -541,7 +541,7 @@ class KafkaMessageHandlerTests {
             // Then - No service methods should be called
             verify(keycloakAdminService, never()).createPilot(any(PilotCreationDto.class));
             verify(keycloakAdminService, never()).deletePilotByName(anyString());
-            verify(keycloakAdminService, never()).updatePilotByName(any(PilotDto.class));
+            verify(keycloakAdminService, never()).updatePilotByName(any(PilotDto.class), anyString());
             verify(userManagementService, never()).retrieveUserById(anyString());
             verify(emailService, never()).sendOrganizationRegistrationEmail(anyString(), anyString(), anyString());
         }
