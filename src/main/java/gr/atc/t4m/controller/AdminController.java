@@ -14,6 +14,7 @@ import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import org.springframework.cache.CacheManager;
 import org.springframework.http.HttpStatus;
@@ -25,6 +26,7 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/api/admin")
+@Tag(name = "Admin Controller", description = "Handles the API requests for T4M Platform Administration operations")
 public class AdminController {
     /**
      * System Roles (Pilot Roles): Roles that are assigned to a User when he signs-up and define their privileges
@@ -176,10 +178,11 @@ public class AdminController {
                 return new ResponseEntity<>(BaseAppResponse.error("You are not authorized to update information on this pilot"), HttpStatus.FORBIDDEN);
             }
         }
-        pilotData.setName(normalizedPilotName);
+        if (pilotData.getName() != null)
+            pilotData.setName(StringNormalizationUtils.normalize(pilotData.getName()));
 
         // Update Pilot in Keycloak
-        adminService.updatePilotByName(pilotData);
+        adminService.updatePilotByName(pilotData, normalizedPilotName);
         return new ResponseEntity<>(BaseAppResponse.success(null, "Pilot updated successfully"), HttpStatus.OK);
     }
 

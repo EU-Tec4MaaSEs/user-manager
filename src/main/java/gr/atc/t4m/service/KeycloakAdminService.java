@@ -322,12 +322,12 @@ public class KeycloakAdminService implements IKeycloakAdminService {
      *
      * @param pilotData : Pilot Data
      */
-    @Observed(name = "pilot.update", contextualName = "updating-pilot")
+    @Observed(name = "pilot.update.byName", contextualName = "updating-pilot-by-name")
     @Override
     @CacheEvict(value = "pilotCodes", allEntries = true)
-    public void updatePilotByName(PilotDto pilotData) {
+    public void updatePilotByName(PilotDto pilotData, String pilotName) {
         try {
-            GroupRepresentation existingGroup = retrieveGroupRepresentationByName(pilotData.getName());
+            GroupRepresentation existingGroup = retrieveGroupRepresentationByName(pilotName);
             if (existingGroup == null) {
                 throw new ResourceNotPresentException("Pilot '" + pilotData.getName() + "' not found");
             }
@@ -342,13 +342,15 @@ public class KeycloakAdminService implements IKeycloakAdminService {
                     .group(existingGroup.getId())
                     .update(updatedGroup);
 
-            log.debug("Pilot '{}' updated successfully", pilotData.getName());
+            if (pilotData.getName() != null)
+                log.debug("Pilot '{}' updated successfully", pilotData.getName());
+            else
+                log.debug("Pilot '{}' updated successfully - Legacy Name: {}", pilotData.getName(), pilotName);
         } catch (Exception e) {
             log.error("Error updating pilot: {}", e.getMessage(), e);
             throw new KeycloakException("Error updating pilot", e);
 
         }
-
     }
 
     /*
