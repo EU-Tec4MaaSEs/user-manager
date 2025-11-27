@@ -22,6 +22,8 @@ import org.keycloak.representations.idm.CredentialRepresentation;
 import org.keycloak.representations.idm.GroupRepresentation;
 import org.keycloak.representations.idm.RoleRepresentation;
 import org.keycloak.representations.idm.UserRepresentation;
+import org.springframework.cache.Cache;
+import org.springframework.cache.CacheManager;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.cache.annotation.Caching;
@@ -29,6 +31,7 @@ import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
+import java.util.Objects;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 
@@ -43,6 +46,8 @@ public class UserManagementService implements IUserManagementService {
     private final KeycloakProperties keycloakProperties;
 
     private final IKeycloakAdminService adminService;
+
+    private final CacheManager cacheManager;
 
     private final IEmailService emailService;
 
@@ -62,11 +67,12 @@ public class UserManagementService implements IUserManagementService {
     private final String clientSecret;
 
 
-    public UserManagementService(Keycloak keycloak, KeycloakProperties keycloakProperties, IKeycloakAdminService adminService, IEmailService emailService) {
+    public UserManagementService(Keycloak keycloak, CacheManager cacheManager, KeycloakProperties keycloakProperties, IKeycloakAdminService adminService, IEmailService emailService) {
         this.keycloak = keycloak;
         this.keycloakProperties = keycloakProperties;
         this.adminService = adminService;
         this.emailService = emailService;
+        this.cacheManager = cacheManager;
         realm = keycloakProperties.realm();
         serverUrl = keycloakProperties.url();
         clientId = keycloakProperties.clientId();
@@ -260,6 +266,8 @@ public class UserManagementService implements IUserManagementService {
             if (existingUser == null)
                 throw new ResourceNotPresentException("User with ID: " + user.getUserId() + " not found");
 
+            resetLegacyCaches(UserDto.fromUserRepresentation(existingUser), user);
+
             userResource.update(UserDto.toUserRepresentation(user, existingUser));
             log.debug("User '{}' updated successfully", user.getUserId());
 
@@ -272,6 +280,55 @@ public class UserManagementService implements IUserManagementService {
         } catch (Exception e) {
             log.error("Error updating user {}: {}", user.getUserId(), e.getMessage(), e);
             throw new KeycloakException("Error updating user with id = " + user.getUserId(), e);
+        }
+    }
+
+    /**
+     * Reset caches from the legacy data before updating user
+     */
+    private void resetLegacyCaches(UserDto legacyUser, UserDto newUser) {
+        Cache usersCache = cacheManager.getCache("users");
+        if (usersCache == null) {
+            log.warn("Users cache not found, skipping cache eviction");
+            return;
+        }
+
+        String oldPilotCode = legacyUser.getPilotCode();
+        String oldPilotRole = legacyUser.getPilotRole();
+        String oldUserRole = legacyUser.getUserRole();
+
+        String newPilotCode = newUser.getPilotCode();
+        String newPilotRole = newUser.getPilotRole();
+        String newUserRole = newUser.getUserRole();
+
+        // Check if pilot code changed
+        boolean pilotCodeChanged = !Objects.equals(oldPilotCode, newPilotCode);
+        boolean userRoleChanged = !Objects.equals(oldUserRole, newUserRole);
+        boolean pilotRoleChanged = !Objects.equals(oldPilotRole, newPilotRole);
+
+        // Evict old pilot code cache
+        if (pilotCodeChanged && oldPilotCode != null) {
+            usersCache.evictIfPresent(oldPilotCode);
+            log.debug("Evicted cache for old pilot code: {}", oldPilotCode);
+        }
+
+        // Evict old user role cache
+        if (userRoleChanged && oldUserRole != null) {
+            usersCache.evictIfPresent(oldUserRole);
+            log.debug("Evicted cache for old user role: {}", oldUserRole);
+        }
+
+        // Evict old pilot role cache
+        if (pilotRoleChanged && oldPilotRole != null) {
+            usersCache.evictIfPresent(oldPilotRole);
+            log.debug("Evicted cache for old pilot role: {}", oldPilotRole);
+        }
+
+        // Evict combined key (pilotCode::userRole) if either changed
+        if ((pilotCodeChanged || userRoleChanged) && oldPilotCode != null && oldUserRole != null) {
+            String combinedKey = oldPilotCode + "::" + oldUserRole;
+            usersCache.evictIfPresent(combinedKey);
+            log.debug("Evicted cache for combined key: {}", combinedKey);
         }
     }
 
