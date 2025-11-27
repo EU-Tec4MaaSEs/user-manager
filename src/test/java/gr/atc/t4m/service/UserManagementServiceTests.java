@@ -21,6 +21,8 @@ import org.keycloak.representations.AccessTokenResponse;
 import org.keycloak.representations.idm.*;
 import org.mockito.*;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.cache.Cache;
+import org.springframework.cache.CacheManager;
 import org.springframework.test.util.ReflectionTestUtils;
 
 import static gr.atc.t4m.exception.CustomExceptions.*;
@@ -84,6 +86,12 @@ class UserManagementServiceTests {
     @Mock
     private Response response;
 
+    @Mock
+    private CacheManager cacheManager;
+
+    @Mock
+    private Cache cache;
+
     @InjectMocks
     private UserManagementService userManagementService;
 
@@ -105,6 +113,10 @@ class UserManagementServiceTests {
         lenient().when(keycloak.realm(TEST_REALM)).thenReturn(realmResource);
         lenient().when(realmResource.users()).thenReturn(usersResource);
         lenient().when(usersResource.get(TEST_USER_ID)).thenReturn(userResource);
+
+        // Mock cache manager
+        lenient().when(cacheManager.getCache("users")).thenReturn(cache);
+        lenient().when(cache.evictIfPresent(any())).thenReturn(true);
 
         ReflectionTestUtils.setField(userManagementService, "realm", TEST_REALM);
         ReflectionTestUtils.setField(userManagementService, "serverUrl", SERVER_URL);
@@ -360,6 +372,8 @@ class UserManagementServiceTests {
             UserRepresentation existingUser = new UserRepresentation();
             existingUser.setId(TEST_USER_ID);
             existingUser.setEmail(TEST_EMAIL);
+            existingUser.setEnabled(true);
+            existingUser.setAttributes(new HashMap<>());
 
             when(userResource.toRepresentation()).thenReturn(existingUser);
             doNothing().when(userResource).update(any(UserRepresentation.class));
@@ -406,6 +420,8 @@ class UserManagementServiceTests {
             UserRepresentation existingUser = new UserRepresentation();
             existingUser.setId(TEST_USER_ID);
             existingUser.setEmail(TEST_EMAIL);
+            existingUser.setEnabled(true);
+            existingUser.setAttributes(new HashMap<>());
 
             when(userResource.toRepresentation()).thenReturn(existingUser);
             doNothing().when(userResource).update(any(UserRepresentation.class));
