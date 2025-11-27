@@ -1,6 +1,7 @@
 package gr.atc.t4m.service;
 
 import gr.atc.t4m.dto.PilotDto;
+import gr.atc.t4m.dto.UserDto;
 import gr.atc.t4m.dto.UserRoleDto;
 import gr.atc.t4m.dto.operations.PilotCreationDto;
 
@@ -10,6 +11,7 @@ import gr.atc.t4m.dto.operations.UserRoleCreationDto;
 import gr.atc.t4m.config.properties.KeycloakProperties;
 import gr.atc.t4m.enums.OrganizationDataFields;
 import gr.atc.t4m.events.OrganizationDeletionEvent;
+import gr.atc.t4m.events.OrganizationNameUpdateEvent;
 import gr.atc.t4m.service.interfaces.IKeycloakAdminService;
 import io.micrometer.observation.annotation.Observed;
 import jakarta.ws.rs.core.Response;
@@ -342,14 +344,25 @@ public class KeycloakAdminService implements IKeycloakAdminService {
                     .group(existingGroup.getId())
                     .update(updatedGroup);
 
-            if (pilotData.getName() != null)
-                log.debug("Pilot '{}' updated successfully", pilotData.getName());
-            else
+            if (pilotData.getName() == null) {
+                log.debug("Pilot '{}' updated successfully", pilotName);
+            } else {
                 log.debug("Pilot '{}' updated successfully - Legacy Name: {}", pilotData.getName(), pilotName);
+                /*
+                 * Check if Pilot Name changed
+                 * If true, then the Groups for Users are automatically switched, but we need to set the attributes also
+                 * Thus we publish a dedicated event to handle this
+                 * */
+                if (!pilotData.getName().equalsIgnoreCase(pilotName)){
+                    OrganizationNameUpdateEvent appEvent = new OrganizationNameUpdateEvent(this, pilotData.getName());
+                    log.debug("Publishing event to modify pilot code attribute for Users in new Pilot: {}, from legacy Pilot: {}", pilotData.getName(), pilotName);
+                    eventPublisher.publishEvent(appEvent);
+                }
+
+            }
         } catch (Exception e) {
             log.error("Error updating pilot: {}", e.getMessage(), e);
             throw new KeycloakException("Error updating pilot", e);
-
         }
     }
 

@@ -43,7 +43,7 @@ public class KafkaMessageHandler {
      */
     @KafkaListener(topics = "#{'${spring.kafka.consumer.topics}'.split(',')}", groupId = "${spring.kafka.consumer.group-id}", errorHandler = "kafkaErrorHandler")
     public void consume(@Valid EventDto event) {
-        String globalName = event.data().name();
+        String globalName = event.organization();
         String pilotName = String.join("-", globalName.trim().toUpperCase().split("\\s+"));
         String eventType = event.type();
 

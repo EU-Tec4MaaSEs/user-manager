@@ -43,12 +43,11 @@ class AppEventListenerTests {
         String pilotName = "TEST_PILOT";
         event = new OrganizationDeletionEvent(eventSource, pilotName);
 
-        UserDto user1 = createUserDto("user1", "test_pilot");
-        UserDto user2 = createUserDto("user2", "OTHER_PILOT");
-        UserDto user3 = createUserDto("user3", "TEST_PILOT");
-        
-        List<UserDto> allUsers = Arrays.asList(user1, user2, user3);
-        when(userManagementService.retrieveAllUsers()).thenReturn(allUsers);
+        UserDto user1 = createUserDto("user1", "TEST_PILOT");
+        UserDto user2 = createUserDto("user2", "TEST_PILOT");
+
+        List<UserDto> pilotUsers = Arrays.asList(user1, user2);
+        when(userManagementService.retrieveUsersByPilotCode(pilotName)).thenReturn(pilotUsers);
 
         // When
         appEventListener.handleUnassignmentOfPilotFromUsers(event);
@@ -56,14 +55,13 @@ class AppEventListenerTests {
         // Then
         ArgumentCaptor<UserDto> userCaptor = ArgumentCaptor.forClass(UserDto.class);
         verify(userManagementService, times(2)).updateUser(userCaptor.capture());
-        
+
         List<UserDto> updatedUsers = userCaptor.getAllValues();
         assertThat(updatedUsers).hasSize(2);
         assertThat(updatedUsers.get(0).getPilotCode()).isEqualTo("DEFAULT");
+        assertThat(updatedUsers.get(0).getOrganizationId()).isEqualTo("DEFAULT");
         assertThat(updatedUsers.get(1).getPilotCode()).isEqualTo("DEFAULT");
-        
-        // Verify user2 was not updated (different pilot)
-        assertThat(user2.getPilotCode()).isEqualTo("OTHER_PILOT");
+        assertThat(updatedUsers.get(1).getOrganizationId()).isEqualTo("DEFAULT");
     }
 
     @Test
@@ -72,8 +70,8 @@ class AppEventListenerTests {
         // Given
         String pilotName = "TEST_PILOT";
         event = new OrganizationDeletionEvent(eventSource, pilotName);
-        
-        when(userManagementService.retrieveAllUsers()).thenReturn(Collections.emptyList());
+
+        when(userManagementService.retrieveUsersByPilotCode(pilotName)).thenReturn(Collections.emptyList());
 
         // When
         appEventListener.handleUnassignmentOfPilotFromUsers(event);
@@ -83,17 +81,16 @@ class AppEventListenerTests {
     }
 
     @Test
-    @DisplayName("Handle Organization Deletion : With Null Pilot Codes")
-    void givenUsersWithNullPilotCodes_whenHandleOrganizationDeletion_thenOnlyMatchingUsersUpdated() {
+    @DisplayName("Handle Organization Deletion : Single User Updated")
+    void givenSingleMatchingUser_whenHandleOrganizationDeletion_thenUserUpdated() {
         // Given
         String pilotName = "TEST_PILOT";
         event = new OrganizationDeletionEvent(eventSource, pilotName);
 
-        UserDto userWithNullPilot = createUserDto("user1", null);
-        UserDto userWithMatchingPilot = createUserDto("user2", "TEST_PILOT");
-        
-        List<UserDto> allUsers = Arrays.asList(userWithNullPilot, userWithMatchingPilot);
-        when(userManagementService.retrieveAllUsers()).thenReturn(allUsers);
+        UserDto userWithMatchingPilot = createUserDto("user1", "TEST_PILOT");
+
+        List<UserDto> pilotUsers = List.of(userWithMatchingPilot);
+        when(userManagementService.retrieveUsersByPilotCode(pilotName)).thenReturn(pilotUsers);
 
         // When
         appEventListener.handleUnassignmentOfPilotFromUsers(event);
@@ -101,25 +98,26 @@ class AppEventListenerTests {
         // Then
         ArgumentCaptor<UserDto> userCaptor = ArgumentCaptor.forClass(UserDto.class);
         verify(userManagementService, times(1)).updateUser(userCaptor.capture());
-        
+
         UserDto updatedUser = userCaptor.getValue();
         assertThat(updatedUser.getPilotCode()).isEqualTo("DEFAULT");
-        assertThat(updatedUser.getUsername()).isEqualTo("user2");
+        assertThat(updatedUser.getOrganizationId()).isEqualTo("DEFAULT");
+        assertThat(updatedUser.getUsername()).isEqualTo("user1");
     }
 
     @Test
-    @DisplayName("Handle Organization Deletion : Case Insensitive Matching")
-    void givenMixedCasePilotNames_whenHandleOrganizationDeletion_thenAllMatchingUsersUpdated() {
+    @DisplayName("Handle Organization Deletion : Multiple Users Updated")
+    void givenMultipleMatchingUsers_whenHandleOrganizationDeletion_thenAllUsersUpdated() {
         // Given
-        String pilotName = "Test_Pilot"; // Mixed case
+        String pilotName = "TEST_PILOT";
         event = new OrganizationDeletionEvent(eventSource, pilotName);
 
-        UserDto user1 = createUserDto("user1", "test_pilot"); // lowercase
-        UserDto user2 = createUserDto("user2", "TEST_PILOT"); // uppercase
-        UserDto user3 = createUserDto("user3", "Test_Pilot"); // mixed case
-        
-        List<UserDto> allUsers = Arrays.asList(user1, user2, user3);
-        when(userManagementService.retrieveAllUsers()).thenReturn(allUsers);
+        UserDto user1 = createUserDto("user1", "TEST_PILOT");
+        UserDto user2 = createUserDto("user2", "TEST_PILOT");
+        UserDto user3 = createUserDto("user3", "TEST_PILOT");
+
+        List<UserDto> pilotUsers = Arrays.asList(user1, user2, user3);
+        when(userManagementService.retrieveUsersByPilotCode(pilotName)).thenReturn(pilotUsers);
 
         // When
         appEventListener.handleUnassignmentOfPilotFromUsers(event);
@@ -129,27 +127,94 @@ class AppEventListenerTests {
     }
 
     @Test
-    @DisplayName("Handle Organization Deletion : Not updating users with different Pilot Codes")
-    void givenUsersWithDifferentPilotCodes_whenHandleOrganizationDeletion_thenNoUsersUpdated() {
+    @DisplayName("Handle Organization Name Update : Success")
+    void givenMatchingPilotUsers_whenHandleOrganizationNameUpdate_thenPilotCodeUpdated() {
         // Given
-        String pilotName = "TARGET_PILOT";
-        event = new OrganizationDeletionEvent(eventSource, pilotName);
+        String newPilotName = "NEW_PILOT_NAME";
+        OrganizationNameUpdateEvent nameUpdateEvent = new OrganizationNameUpdateEvent(eventSource, newPilotName);
 
-        UserDto user1 = createUserDto("user1", "OTHER_PILOT");
-        UserDto user2 = createUserDto("user2", "ANOTHER_PILOT");
-        
-        List<UserDto> allUsers = Arrays.asList(user1, user2);
-        when(userManagementService.retrieveAllUsers()).thenReturn(allUsers);
+        UserDto user1 = createUserDto("user1", "OLD_PILOT_NAME");
+        UserDto user2 = createUserDto("user2", "OLD_PILOT_NAME");
+
+        List<UserDto> pilotUsers = Arrays.asList(user1, user2);
+        when(userManagementService.retrieveUsersByPilotCode(newPilotName)).thenReturn(pilotUsers);
 
         // When
-        appEventListener.handleUnassignmentOfPilotFromUsers(event);
+        appEventListener.handleModificationOfPilotFromUsers(nameUpdateEvent);
+
+        // Then
+        ArgumentCaptor<UserDto> userCaptor = ArgumentCaptor.forClass(UserDto.class);
+        verify(userManagementService, times(2)).updateUser(userCaptor.capture());
+
+        List<UserDto> updatedUsers = userCaptor.getAllValues();
+        assertThat(updatedUsers).hasSize(2);
+        assertThat(updatedUsers.getFirst().getPilotCode()).isEqualTo(newPilotName);
+        assertThat(updatedUsers.get(1).getPilotCode()).isEqualTo(newPilotName);
+    }
+
+    @Test
+    @DisplayName("Handle Organization Name Update : Empty Users List")
+    void givenEmptyUsersList_whenHandleOrganizationNameUpdate_thenNoUsersUpdated() {
+        // Given
+        String newPilotName = "NEW_PILOT_NAME";
+        OrganizationNameUpdateEvent nameUpdateEvent = new OrganizationNameUpdateEvent(eventSource, newPilotName);
+
+        when(userManagementService.retrieveUsersByPilotCode(newPilotName)).thenReturn(Collections.emptyList());
+
+        // When
+        appEventListener.handleModificationOfPilotFromUsers(nameUpdateEvent);
 
         // Then
         verify(userManagementService, never()).updateUser(any(UserDto.class));
-        
-        // Verify original pilot codes remain unchanged
-        assertThat(user1.getPilotCode()).isEqualTo("OTHER_PILOT");
-        assertThat(user2.getPilotCode()).isEqualTo("ANOTHER_PILOT");
+    }
+
+    @Test
+    @DisplayName("Handle Organization Name Update : Single User Updated")
+    void givenSingleMatchingUser_whenHandleOrganizationNameUpdate_thenUserUpdated() {
+        // Given
+        String newPilotName = "UPDATED_PILOT";
+        OrganizationNameUpdateEvent nameUpdateEvent = new OrganizationNameUpdateEvent(eventSource, newPilotName);
+
+        UserDto user = createUserDto("user1", "OLD_PILOT");
+
+        List<UserDto> pilotUsers = List.of(user);
+        when(userManagementService.retrieveUsersByPilotCode(newPilotName)).thenReturn(pilotUsers);
+
+        // When
+        appEventListener.handleModificationOfPilotFromUsers(nameUpdateEvent);
+
+        // Then
+        ArgumentCaptor<UserDto> userCaptor = ArgumentCaptor.forClass(UserDto.class);
+        verify(userManagementService, times(1)).updateUser(userCaptor.capture());
+
+        UserDto updatedUser = userCaptor.getValue();
+        assertThat(updatedUser.getPilotCode()).isEqualTo(newPilotName);
+        assertThat(updatedUser.getUsername()).isEqualTo("user1");
+    }
+
+    @Test
+    @DisplayName("Handle Organization Name Update : Multiple Users Updated")
+    void givenMultipleMatchingUsers_whenHandleOrganizationNameUpdate_thenAllUsersUpdated() {
+        // Given
+        String newPilotName = "RENAMED_PILOT";
+        OrganizationNameUpdateEvent nameUpdateEvent = new OrganizationNameUpdateEvent(eventSource, newPilotName);
+
+        UserDto user1 = createUserDto("user1", "ORIGINAL_PILOT");
+        UserDto user2 = createUserDto("user2", "ORIGINAL_PILOT");
+        UserDto user3 = createUserDto("user3", "ORIGINAL_PILOT");
+
+        List<UserDto> pilotUsers = Arrays.asList(user1, user2, user3);
+        when(userManagementService.retrieveUsersByPilotCode(newPilotName)).thenReturn(pilotUsers);
+
+        // When
+        appEventListener.handleModificationOfPilotFromUsers(nameUpdateEvent);
+
+        // Then
+        ArgumentCaptor<UserDto> userCaptor = ArgumentCaptor.forClass(UserDto.class);
+        verify(userManagementService, times(3)).updateUser(userCaptor.capture());
+
+        List<UserDto> updatedUsers = userCaptor.getAllValues();
+        assertThat(updatedUsers).allMatch(user -> newPilotName.equals(user.getPilotCode()));
     }
 
     private UserDto createUserDto(String username, String pilotCode) {
