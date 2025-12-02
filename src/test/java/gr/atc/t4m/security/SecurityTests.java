@@ -161,15 +161,15 @@ class SecurityTests {
     @DisplayName("RateLimiting Filter: Test filter blocks requests over limit")
     @Test
     void givenTooManyRequests_whenRateLimitingFilter_thenError() throws ServletException, IOException {
-        // Given
+        // Given - Anonymous user (no authentication) with IP-based rate limiting
         RateLimitingFilter filter = new RateLimitingFilter(objectMapper);
         MockHttpServletRequest request = new MockHttpServletRequest();
         request.setRemoteAddr("192.168.1.2");
         MockHttpServletResponse response = new MockHttpServletResponse();
         MockFilterChain filterChain = new MockFilterChain();
 
-        // When
-        int requestCount = 300; // Limit = 250
+        // When - Make more requests than anonymous limit (100 requests)
+        int requestCount = 120;
         for (int i = 0; i < requestCount; i++) {
             filter.doFilter(request, response, filterChain);
             if (response.getStatus() == 429) {
@@ -181,6 +181,7 @@ class SecurityTests {
             filterChain = new MockFilterChain();
         }
 
+        // Then - Should be rate limited
         assertEquals(429, response.getStatus());
     }
 }

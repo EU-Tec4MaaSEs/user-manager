@@ -37,4 +37,3 @@ build/
 kafka-truststore.jks
 .env
 /keycloak
-docker-compose.yml

@@ -49,6 +49,9 @@ class KeycloakAdminServiceTests {
     private ApplicationEventPublisher eventPublisher;
 
     @Mock
+    private CacheService cacheService;
+
+    @Mock
     private RealmResource realmResource;
 
     @Mock
@@ -95,9 +98,12 @@ class KeycloakAdminServiceTests {
         lenient().when(keycloakProperties.excludedDefaultRoles()).thenReturn("SUPER_ADMIN,DEFAULT_ROLES");
         lenient().when(keycloakProperties.initClientId()).thenReturn(true);
 
-        adminService = new KeycloakAdminService(keycloak, keycloakProperties, eventPublisher);
+        adminService = new KeycloakAdminService(keycloak, keycloakProperties, eventPublisher, cacheService);
         lenient().when(keycloak.realm(anyString())).thenReturn(realmResource);
         lenient().when(realmResource.groups()).thenReturn(groupsResource);
+
+        // Mock CacheService methods
+        lenient().when(cacheService.evictIfPresent(anyString(), any())).thenReturn(true);
     }
 
     @Nested

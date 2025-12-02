@@ -22,7 +22,7 @@ import gr.atc.t4m.security.filters.*;
 
 @Configuration
 @EnableWebSecurity
-@EnableMethodSecurity(prePostEnabled = true)
+@EnableMethodSecurity
 public class SecurityConfig {
 
         @Value("${spring.security.cors.domains}")
@@ -33,8 +33,8 @@ public class SecurityConfig {
         private final JwtAttributesValidatorFilter jwtAttributesValidatorFilter;
 
         public SecurityConfig(RateLimitingFilter rateLimitingFilter, JwtAttributesValidatorFilter jwtAttributesValidatorFilter) {
-                this.rateLimitingFilter = rateLimitingFilter;
-                this.jwtAttributesValidatorFilter = jwtAttributesValidatorFilter;
+            this.rateLimitingFilter = rateLimitingFilter;
+            this.jwtAttributesValidatorFilter = jwtAttributesValidatorFilter;
         }
 
         /**

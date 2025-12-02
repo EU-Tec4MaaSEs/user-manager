@@ -7,6 +7,7 @@ import gr.atc.t4m.dto.UserDto;
 import gr.atc.t4m.dto.UserRoleDto;
 import gr.atc.t4m.dto.operations.PilotCreationDto;
 import gr.atc.t4m.dto.operations.UserRoleCreationDto;
+import gr.atc.t4m.service.CacheService;
 import gr.atc.t4m.service.interfaces.IKeycloakAdminService;
 import gr.atc.t4m.service.interfaces.IUserManagementService;
 import org.hamcrest.Matchers;
@@ -16,8 +17,6 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
-import org.springframework.cache.Cache;
-import org.springframework.cache.CacheManager;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
@@ -67,7 +66,7 @@ class AdminControllerTests {
     private IUserManagementService userManagementService;
 
     @MockitoBean
-    private CacheManager cacheManager;
+    private CacheService cacheService;
 
     @Autowired
     private MockMvc mockMvc;
@@ -640,21 +639,8 @@ class AdminControllerTests {
         @DisplayName("Reset All Caches: Success - Super Admin")
         @Test
         void givenSuperAdminJwt_whenResetAllCaches_thenReturnSuccess() throws Exception {
-            // Given - Mock cache manager with multiple caches
-            Cache pilotRolesCache = mock(Cache.class);
-            Cache pilotCodesCache = mock(Cache.class);
-            Cache userRolesCache = mock(Cache.class);
-            Cache usersCache = mock(Cache.class);
-
-            // When cache manager returns cache names
-            given(cacheManager.getCacheNames())
-                    .willReturn(List.of("pilotRoles", "pilotCodes", "userRoles", "users"));
-
-            // When individual caches are requested
-            given(cacheManager.getCache("pilotRoles")).willReturn(pilotRolesCache);
-            given(cacheManager.getCache("pilotCodes")).willReturn(pilotCodesCache);
-            given(cacheManager.getCache("userRoles")).willReturn(userRolesCache);
-            given(cacheManager.getCache("users")).willReturn(usersCache);
+            // Given
+            doNothing().when(cacheService).clearAllCaches();
 
             // Mock JWT authentication
             JwtAuthenticationToken jwtAuthenticationToken = new JwtAuthenticationToken(superAdminJwt,
@@ -671,11 +657,8 @@ class AdminControllerTests {
                     .andExpect(jsonPath("$.success", is(true)))
                     .andExpect(jsonPath("$.message", is("All caches cleared successfully")));
 
-            // Verify all caches were cleared
-            verify(pilotRolesCache).clear();
-            verify(pilotCodesCache).clear();
-            verify(userRolesCache).clear();
-            verify(usersCache).clear();
+            // Verify cacheService.clearAllCaches() was called
+            verify(cacheService).clearAllCaches();
         }
 
         @DisplayName("Reset All Caches: Forbidden - Admin Role")
@@ -697,7 +680,7 @@ class AdminControllerTests {
                     .andExpect(jsonPath("$.message", is("Invalid authorization parameters")));
 
             // Verify no caches were cleared
-            verify(cacheManager, never()).getCacheNames();
+            verify(cacheService, never()).clearAllCaches();
         }
 
         @DisplayName("Reset All Caches: Forbidden - User Role")
@@ -719,7 +702,7 @@ class AdminControllerTests {
                     .andExpect(jsonPath("$.success", is(false)));
 
             // Verify no caches were cleared
-            verify(cacheManager, never()).getCacheNames();
+            verify(cacheService, never()).clearAllCaches();
         }
     }
 

@@ -6,6 +6,7 @@ import gr.atc.t4m.dto.UserDto;
 import gr.atc.t4m.dto.UserRoleDto;
 import gr.atc.t4m.dto.operations.PilotCreationDto;
 import gr.atc.t4m.dto.operations.UserRoleCreationDto;
+import gr.atc.t4m.service.CacheService;
 import gr.atc.t4m.service.interfaces.IKeycloakAdminService;
 import gr.atc.t4m.util.StringNormalizationUtils;
 import io.swagger.v3.oas.annotations.Hidden;
@@ -16,7 +17,6 @@ import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
-import org.springframework.cache.CacheManager;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -35,14 +35,14 @@ public class AdminController {
      */
     private final IKeycloakAdminService adminService;
     private final JwtContext jwtContext;
-    private final CacheManager cacheManager;
+    private final CacheService cacheService;
 
     private static final String DEFAULT_PILOT = "DEFAULT";
 
-    public AdminController(IKeycloakAdminService adminService, JwtContext jwtContext, CacheManager cacheManager) {
+    public AdminController(IKeycloakAdminService adminService, JwtContext jwtContext, CacheService cacheService) {
         this.adminService = adminService;
         this.jwtContext = jwtContext;
-        this.cacheManager = cacheManager;
+        this.cacheService = cacheService;
     }
 
     /*
@@ -391,14 +391,8 @@ public class AdminController {
     @Hidden
     @DeleteMapping("/cache/reset")
     public ResponseEntity<BaseAppResponse<Void>> resetAllCaches() {
-        // Get all cache names and clear each cache
-        cacheManager.getCacheNames()
-                .forEach(cacheName -> {
-                    var cache = cacheManager.getCache(cacheName);
-                    if (cache != null) {
-                        cache.clear();
-                    }
-                });
+        // Clear All Caches
+        cacheService.clearAllCaches();
 
         return new ResponseEntity<>(BaseAppResponse.success(null, "All caches cleared successfully"), HttpStatus.OK);
     }
