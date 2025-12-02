@@ -6,6 +6,7 @@ import gr.atc.t4m.dto.UserRoleDto;
 import gr.atc.t4m.dto.operations.PasswordsDto;
 import gr.atc.t4m.dto.operations.UserCreationDto;
 import gr.atc.t4m.config.properties.KeycloakProperties;
+import gr.atc.t4m.enums.OrganizationDataFields;
 import gr.atc.t4m.service.interfaces.IEmailService;
 import gr.atc.t4m.service.interfaces.IKeycloakAdminService;
 import gr.atc.t4m.service.interfaces.IUserManagementService;
@@ -22,8 +23,6 @@ import org.keycloak.representations.idm.CredentialRepresentation;
 import org.keycloak.representations.idm.GroupRepresentation;
 import org.keycloak.representations.idm.RoleRepresentation;
 import org.keycloak.representations.idm.UserRepresentation;
-import org.springframework.cache.Cache;
-import org.springframework.cache.CacheManager;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.cache.annotation.Caching;
@@ -31,7 +30,7 @@ import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
-import java.util.Objects;
+import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 
@@ -47,9 +46,9 @@ public class UserManagementService implements IUserManagementService {
 
     private final IKeycloakAdminService adminService;
 
-    private final CacheManager cacheManager;
-
     private final IEmailService emailService;
+
+    private final CacheService cacheService;
 
     private static final long ACTIVATION_TOKEN_EXPIRY_MS = TimeUnit.DAYS.toMillis(3);
 
@@ -57,6 +56,7 @@ public class UserManagementService implements IUserManagementService {
     private static final String ACTIVATION_TOKEN = "activation_token";
     private static final String ACTIVATION_EXPIRY = "activation_expiry";
     private static final String RESET_TOKEN = "reset_token";
+    private static final String PILOT_ROLE = "pilot_role";
     private static final String GLOBAL_PILOT_CODE = "ALL";
     private static final String DEFAULT_PILOT = "DEFAULT";
     private static final String SUPER_ADMIN_ROLE = "SUPER_ADMIN";
@@ -67,12 +67,12 @@ public class UserManagementService implements IUserManagementService {
     private final String clientSecret;
 
 
-    public UserManagementService(Keycloak keycloak, CacheManager cacheManager, KeycloakProperties keycloakProperties, IKeycloakAdminService adminService, IEmailService emailService) {
+    public UserManagementService(Keycloak keycloak, KeycloakProperties keycloakProperties, IKeycloakAdminService adminService, IEmailService emailService, CacheService cacheService) {
         this.keycloak = keycloak;
         this.keycloakProperties = keycloakProperties;
         this.adminService = adminService;
         this.emailService = emailService;
-        this.cacheManager = cacheManager;
+        this.cacheService = cacheService;
         realm = keycloakProperties.realm();
         serverUrl = keycloakProperties.url();
         clientId = keycloakProperties.clientId();
@@ -108,23 +108,21 @@ public class UserManagementService implements IUserManagementService {
      */
     @Observed(name = "user.delete", contextualName = "deleting-user")
     @Override
-    @Caching(evict = {
-            // Evict the specific user by ID
-            @CacheEvict(value = "users", key = "#userId"),
-            // Evict the all users cache
-            @CacheEvict(value = "users", key = "'all-users'")
-    })
     public void deleteUser(String userId) {
         UserRepresentation user = retrieveUserRepresentationById(userId);
         if (user == null)
             throw new ResourceNotPresentException("User with ID " + userId + " not found");
 
+        UserDto legacyUser = UserDto.fromUserRepresentation(user);
         try {
             keycloak.realm(realm)
                     .users()
                     .get(userId)
                     .remove();
             log.debug("User '{}' deleted successfully", userId);
+
+            // Evict Caches
+            cacheService.evictUserCaches(userId, legacyUser.getPilotCode(), legacyUser.getUserRole(), legacyUser.getPilotRole());
         } catch (Exception e) {
             log.error("Error deleting user {}: {}", userId, e.getMessage());
             throw new KeycloakException("Error deleting user with id = " + userId, e);
@@ -167,7 +165,7 @@ public class UserManagementService implements IUserManagementService {
             GroupRepresentation groupRep = adminService.retrieveGroupRepresentationByName(user.getPilotCode());
             if (groupRep != null) {
                 PilotDto pilotDto = PilotDto.fromGroupRepresentation(groupRep);
-                if (pilotDto != null && pilotDto.getOrganizationId() != null) {
+                if (pilotDto.getOrganizationId() != null) {
                     user.setOrganizationId(pilotDto.getOrganizationId());
                 } else {
                     log.warn("Unable to retrieve organization ID for pilot code: {}", user.getPilotCode());
@@ -190,7 +188,12 @@ public class UserManagementService implements IUserManagementService {
                     .users()
                     .create(newUser);
 
-            return extractUserIdFromResponse(response);
+            String createdUserId = extractUserIdFromResponse(response);
+
+            // Evict Caches
+            cacheService.evictUserCaches(createdUserId, user.getPilotCode(), user.getUserRole(), user.getPilotRole());
+
+            return createdUserId;
         } catch (Exception e) {
             log.error("Error during user creation: {}", e.getMessage(), e);
             throw new KeycloakException("Error during user creation", e);
@@ -241,18 +244,6 @@ public class UserManagementService implements IUserManagementService {
      */
     @Observed(name = "user.update", contextualName = "updating-user")
     @Override
-    @Caching(evict = {
-            // Evict the specific user by ID (will be updated with @CachePut below)
-            @CacheEvict(value = "users", key = "#user.userId"),
-            // Evict all users cache (no key)
-            @CacheEvict(value = "users", key = "'all-users'"),
-            // Evict caches for new values
-            @CacheEvict(value = "users", key = "#user.pilotCode", condition = "#user.pilotCode != null"),
-            @CacheEvict(value = "users", key = "#user.userRole", condition = "#user.userRole != null"),
-            @CacheEvict(value = "users", key = "#user.pilotCode + '::' + #user.userRole",
-                    condition = "#user.pilotCode != null && #user.userRole != null")
-            // Note: We also need to evict OLD values if pilotCode/userRole changed, but that requires beforeInvocation
-    })
     public void updateUser(UserDto user) {
         if (!hasValidKeycloakAttributes(user))
             throw new ValidationException("Some of the input data are not present in Keycloak (Pilot Role, Pilot Code, User Role)");
@@ -266,15 +257,30 @@ public class UserManagementService implements IUserManagementService {
             if (existingUser == null)
                 throw new ResourceNotPresentException("User with ID: " + user.getUserId() + " not found");
 
-            resetLegacyCaches(UserDto.fromUserRepresentation(existingUser), user);
+            // Check if Pilot Code is altered and assign new Groups to User and change the Organization ID
+            if (user.getPilotCode() != null) {
+                String currentPilotRole = determinePilotRole(user, existingUser);
+                GroupRepresentation groupRepr = adminService.retrieveGroupRepresentationByName(user.getPilotCode());
+
+                String organizationId = extractOrganizationId(groupRepr, user.getPilotCode());
+                user.setOrganizationId(organizationId);
+
+                assignGroupsToUser(user.getPilotCode(), currentPilotRole, userResource);
+            }
+
 
             userResource.update(UserDto.toUserRepresentation(user, existingUser));
             log.debug("User '{}' updated successfully", user.getUserId());
 
-            if (user.getPilotCode() != null) {
-                String currentPilotRole = user.getPilotRole() != null ? user.getPilotRole() : existingUser.getAttributes().get("pilot_role").getFirst();
-                assignGroupsToUser(user.getPilotCode(), currentPilotRole, userResource);
-            }
+            // Evict Caches
+            UserDto legacyUser = UserDto.fromUserRepresentation(existingUser);
+            cacheService.evictLegacyUserCaches(user.getUserId(),
+                    legacyUser.getPilotCode(),
+                    legacyUser.getUserRole(),
+                    legacyUser.getPilotRole(),
+                    user.getPilotCode(),
+                    user.getUserRole(),
+                    user.getPilotRole());
         } catch (ResourceNotPresentException e) {
             throw e;
         } catch (Exception e) {
@@ -283,53 +289,34 @@ public class UserManagementService implements IUserManagementService {
         }
     }
 
-    /**
-     * Reset caches from the legacy data before updating user
+    /*
+     * Helper method to determine the Pilot Role
      */
-    private void resetLegacyCaches(UserDto legacyUser, UserDto newUser) {
-        Cache usersCache = cacheManager.getCache("users");
-        if (usersCache == null) {
-            log.warn("Users cache not found, skipping cache eviction");
-            return;
+    private String determinePilotRole(UserDto user, UserRepresentation existingUser) {
+        return user.getPilotRole() != null
+                ? user.getPilotRole()
+                : existingUser.getAttributes().get(PILOT_ROLE).getFirst();
+    }
+
+    /*
+     * Helper method to Extract Organization ID for a given Group Representation
+     */
+    private String extractOrganizationId(GroupRepresentation groupRepr, String pilotCode) {
+        Map<String, List<String>> attributes = groupRepr.getAttributes();
+        String orgIdKey = OrganizationDataFields.ORGANIZATION_ID.toString();
+
+        if (attributes.isEmpty() || !attributes.containsKey(orgIdKey)) {
+            throw new ResourceNotPresentException(
+                    "Unable to locate Organization attributes in Group Representation for Pilot: " + pilotCode);
         }
 
-        String oldPilotCode = legacyUser.getPilotCode();
-        String oldPilotRole = legacyUser.getPilotRole();
-        String oldUserRole = legacyUser.getUserRole();
-
-        String newPilotCode = newUser.getPilotCode();
-        String newPilotRole = newUser.getPilotRole();
-        String newUserRole = newUser.getUserRole();
-
-        // Check if pilot code changed
-        boolean pilotCodeChanged = !Objects.equals(oldPilotCode, newPilotCode);
-        boolean userRoleChanged = !Objects.equals(oldUserRole, newUserRole);
-        boolean pilotRoleChanged = !Objects.equals(oldPilotRole, newPilotRole);
-
-        // Evict old pilot code cache
-        if (pilotCodeChanged && oldPilotCode != null) {
-            usersCache.evictIfPresent(oldPilotCode);
-            log.debug("Evicted cache for old pilot code: {}", oldPilotCode);
+        List<String> organizationIds = attributes.get(orgIdKey);
+        if (organizationIds == null || organizationIds.isEmpty()) {
+            throw new ResourceNotPresentException(
+                    "Unable to locate Organization ID for Pilot: " + pilotCode);
         }
 
-        // Evict old user role cache
-        if (userRoleChanged && oldUserRole != null) {
-            usersCache.evictIfPresent(oldUserRole);
-            log.debug("Evicted cache for old user role: {}", oldUserRole);
-        }
-
-        // Evict old pilot role cache
-        if (pilotRoleChanged && oldPilotRole != null) {
-            usersCache.evictIfPresent(oldPilotRole);
-            log.debug("Evicted cache for old pilot role: {}", oldPilotRole);
-        }
-
-        // Evict combined key (pilotCode::userRole) if either changed
-        if ((pilotCodeChanged || userRoleChanged) && oldPilotCode != null && oldUserRole != null) {
-            String combinedKey = oldPilotCode + "::" + oldUserRole;
-            usersCache.evictIfPresent(combinedKey);
-            log.debug("Evicted cache for combined key: {}", combinedKey);
-        }
+        return organizationIds.getFirst();
     }
 
     /*
@@ -632,7 +619,7 @@ public class UserManagementService implements IUserManagementService {
                     .get(userId);
 
             // Step 1: Remove reset token from user attributes
-            if (user.getAttributes() != null && user.getAttributes().containsKey(RESET_TOKEN)) {
+            if (user.getAttributes() != null) {
                 user.getAttributes().remove(RESET_TOKEN);
             }
             userResource.update(user);
@@ -695,12 +682,8 @@ public class UserManagementService implements IUserManagementService {
             // Step 1: Enable user and remove activation tokens
             existingUser.setEnabled(true);
             if (existingUser.getAttributes() != null) {
-                if (existingUser.getAttributes().containsKey(ACTIVATION_TOKEN)) {
-                    existingUser.getAttributes().remove(ACTIVATION_TOKEN);
-                }
-                if (existingUser.getAttributes().containsKey(ACTIVATION_EXPIRY)) {
-                    existingUser.getAttributes().remove(ACTIVATION_EXPIRY);
-                }
+                existingUser.getAttributes().remove(ACTIVATION_TOKEN);
+                existingUser.getAttributes().remove(ACTIVATION_EXPIRY);
             }
             userResource.update(existingUser);
             log.debug("User '{}' enabled and activation tokens removed", userId);

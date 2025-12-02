@@ -2,6 +2,7 @@ package gr.atc.t4m.dto;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import gr.atc.t4m.dto.operations.UserRoleCreationDto;
+import gr.atc.t4m.util.StringNormalizationUtils;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -37,7 +38,7 @@ public class UserRoleDto {
      */
     public static UserRoleDto fromUserRoleCreationDto(UserRoleCreationDto newUserRole){
         UserRoleDto userRoleDto = new UserRoleDto();
-        userRoleDto.setName(newUserRole.name());
+        userRoleDto.setName(StringNormalizationUtils.normalizeUserRole(newUserRole.name()));
         userRoleDto.setGlobalName(newUserRole.globalName());
         userRoleDto.setDescription(newUserRole.description());
         return userRoleDto;

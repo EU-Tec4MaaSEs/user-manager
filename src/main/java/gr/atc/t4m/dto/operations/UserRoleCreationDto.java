@@ -8,7 +8,7 @@ import lombok.Builder;
 public record UserRoleCreationDto(
 
         @NotBlank(message = "Role name cannot be empty")
-        @Schema(description = "Name of the Role",
+        @Schema(description = "Name of the Role - Should be joined with underscored",
                 name = "name",
                 type = "String",
                 requiredMode = Schema.RequiredMode.REQUIRED)

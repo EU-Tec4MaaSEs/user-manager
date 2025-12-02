@@ -24,6 +24,22 @@ public class StringNormalizationUtils {
     }
 
     /**
+     * Normalize a string by trimming whitespace, converting to uppercase and joining whitespaces with underscore
+     *
+     * @param input the string to normalize
+     * @return normalized string (trimmed, underscored and uppercase), or null if input is null
+     *
+     * @example
+     * normalize("test Role") -> "TEST_ROLE"
+     */
+    public static String normalizeUserRole(String input) {
+        if (input == null) {
+            return null;
+        }
+        return input.trim().toUpperCase().replace(' ', '_');
+    }
+
+    /**
      * Normalize email address (trim and lowercase)
      * Email addresses should be case-insensitive
      *

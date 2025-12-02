@@ -1,7 +1,6 @@
 package gr.atc.t4m.service;
 
 import gr.atc.t4m.dto.PilotDto;
-import gr.atc.t4m.dto.UserDto;
 import gr.atc.t4m.dto.UserRoleDto;
 import gr.atc.t4m.dto.operations.PilotCreationDto;
 
@@ -14,6 +13,7 @@ import gr.atc.t4m.events.OrganizationDeletionEvent;
 import gr.atc.t4m.events.OrganizationNameUpdateEvent;
 import gr.atc.t4m.service.interfaces.IKeycloakAdminService;
 import io.micrometer.observation.annotation.Observed;
+import jakarta.ws.rs.NotFoundException;
 import jakarta.ws.rs.core.Response;
 import lombok.extern.slf4j.Slf4j;
 import org.keycloak.admin.client.Keycloak;
@@ -37,6 +37,8 @@ public class KeycloakAdminService implements IKeycloakAdminService {
 
     private final ApplicationEventPublisher eventPublisher;
 
+    private final CacheService cacheService;
+
     private final String realm;
     private final String client;
     private final List<String> excludedSuperAdminRoles;
@@ -49,11 +51,13 @@ public class KeycloakAdminService implements IKeycloakAdminService {
     private String clientId;
     private final boolean shouldInitClientId;
 
-    public KeycloakAdminService(Keycloak keycloak, KeycloakProperties keycloakProperties, ApplicationEventPublisher eventPublisher) {
+    public KeycloakAdminService(Keycloak keycloak, KeycloakProperties keycloakProperties,
+                                ApplicationEventPublisher eventPublisher, CacheService cacheService) {
         this.keycloak = keycloak;
         realm = keycloakProperties.realm();
         client = keycloakProperties.clientId();
         this.eventPublisher = eventPublisher;
+        this.cacheService = cacheService;
         excludedSuperAdminRoles = Optional.ofNullable(keycloakProperties.excludedSuperAdminRoles())
                 .map(s -> Arrays.stream(s.split(","))
                         .map(String::trim)
@@ -204,6 +208,9 @@ public class KeycloakAdminService implements IKeycloakAdminService {
             // Create the subgroups for the created pilot
             createSubgroups(groupId, newPilot.subGroups());
             log.debug("Pilot '{}' created successfully with ID '{}'", newPilot.name(), groupId);
+
+            // Evict all-users cache since new pilot may affect user queries
+            cacheService.evictIfPresent(CacheService.USERS_CACHE, CacheService.ALL_USERS_KEY);
         } catch (Exception e) {
             log.error("Error creating pilot: {}", e.getMessage(), e);
             throw new KeycloakException("Error creating pilot", e);
@@ -271,6 +278,10 @@ public class KeycloakAdminService implements IKeycloakAdminService {
             log.error("Error deleting pilot: {}", e.getMessage(), e);
             throw new KeycloakException("Error deleting pilot", e);
         }
+
+        // Evict user caches before event to prevent race condition
+        cacheService.evictIfPresent(CacheService.USERS_CACHE, pilot);
+        cacheService.evictIfPresent(CacheService.USERS_CACHE, CacheService.ALL_USERS_KEY);
 
         // Trigger an event to locate all users with the specified pilot code and remove the pilot code from their attributes
         OrganizationDeletionEvent appEvent = new OrganizationDeletionEvent(this, pilot);
@@ -343,6 +354,13 @@ public class KeycloakAdminService implements IKeycloakAdminService {
                     .groups()
                     .group(existingGroup.getId())
                     .update(updatedGroup);
+
+            // Evict user caches before event to prevent race condition
+            cacheService.evictIfPresent(CacheService.USERS_CACHE, pilotName);
+            if (pilotData.getName() != null && !pilotData.getName().equalsIgnoreCase(pilotName)) {
+                cacheService.evictIfPresent(CacheService.USERS_CACHE, pilotData.getName());
+            }
+            cacheService.evictIfPresent(CacheService.USERS_CACHE, CacheService.ALL_USERS_KEY);
 
             if (pilotData.getName() == null) {
                 log.debug("Pilot '{}' updated successfully", pilotName);
@@ -616,15 +634,7 @@ public class KeycloakAdminService implements IKeycloakAdminService {
     @Observed(name = "user-role.create", contextualName = "creating-user-role")
     @Override
     @Caching(evict = {
-            @CacheEvict(value = "userRoles", key = "true"),
-            @CacheEvict(value = "userRoles", key = "false"),
-            // Evict specific pilotCode key if exists
-            @CacheEvict(value = "userRoles", key = "#newUserRole.pilotCode()", condition = "#newUserRole.pilotCode() != null"),
-            // Evict specific pilotRole key if exists
-            @CacheEvict(value = "userRoles", key = "#newUserRole.pilotRole()", condition = "#newUserRole.pilotRole() != null"),
-            // Evict specific pilotRole::pilotCode combination if both exist
-            @CacheEvict(value = "userRoles", key = "#newUserRole.pilotRole() + '::' + #newUserRole.pilotCode()",
-                        condition = "#newUserRole.pilotRole() != null && #newUserRole.pilotCode() != null")
+            @CacheEvict(value = "userRoles")
     })
     public void createUserRole(UserRoleCreationDto newUserRole) {
         RoleRepresentation existingRepresentation = retrieveClientRoleRepresentationByName(newUserRole.name().toUpperCase());
@@ -646,7 +656,6 @@ public class KeycloakAdminService implements IKeycloakAdminService {
             log.error("Unable to create new User Role - Error: {}", e.getMessage());
             throw new KeycloakException("Unable to create new User Role", e);
         }
-
     }
 
     /**
@@ -751,6 +760,9 @@ public class KeycloakAdminService implements IKeycloakAdminService {
                     .roles()
                     .get(userRole)
                     .toRepresentation();
+        } catch (NotFoundException e){
+            log.debug("User role {} not found", userRole);
+            return null;
         } catch (Exception e) {
             log.error("Error retrieving user role {} - Error: {}", userRole, e.getMessage(), e);
             return null;
