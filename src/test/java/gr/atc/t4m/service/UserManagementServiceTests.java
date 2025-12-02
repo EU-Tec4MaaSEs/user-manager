@@ -4,6 +4,7 @@ import gr.atc.t4m.config.properties.KeycloakProperties;
 import gr.atc.t4m.dto.UserDto;
 import gr.atc.t4m.dto.operations.PasswordsDto;
 import gr.atc.t4m.dto.operations.UserCreationDto;
+import gr.atc.t4m.enums.OrganizationDataFields;
 import gr.atc.t4m.service.interfaces.IEmailService;
 import gr.atc.t4m.service.interfaces.IKeycloakAdminService;
 import jakarta.validation.ValidationException;
@@ -21,8 +22,6 @@ import org.keycloak.representations.AccessTokenResponse;
 import org.keycloak.representations.idm.*;
 import org.mockito.*;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.cache.Cache;
-import org.springframework.cache.CacheManager;
 import org.springframework.test.util.ReflectionTestUtils;
 
 import static gr.atc.t4m.exception.CustomExceptions.*;
@@ -87,10 +86,7 @@ class UserManagementServiceTests {
     private Response response;
 
     @Mock
-    private CacheManager cacheManager;
-
-    @Mock
-    private Cache cache;
+    private CacheService cacheService;
 
     @InjectMocks
     private UserManagementService userManagementService;
@@ -114,9 +110,8 @@ class UserManagementServiceTests {
         lenient().when(realmResource.users()).thenReturn(usersResource);
         lenient().when(usersResource.get(TEST_USER_ID)).thenReturn(userResource);
 
-        // Mock cache manager
-        lenient().when(cacheManager.getCache("users")).thenReturn(cache);
-        lenient().when(cache.evictIfPresent(any())).thenReturn(true);
+        // Mock CacheService - no stubbing needed, just mock behavior when called
+        lenient().doNothing().when(cacheService).evictLegacyUserCaches(anyString(), anyString(), anyString(), anyString(), anyString(), anyString(), anyString());
 
         ReflectionTestUtils.setField(userManagementService, "realm", TEST_REALM);
         ReflectionTestUtils.setField(userManagementService, "serverUrl", SERVER_URL);
@@ -174,6 +169,7 @@ class UserManagementServiceTests {
             UserRepresentation userRep = new UserRepresentation();
             userRep.setId(TEST_USER_ID);
             userRep.setEmail(TEST_EMAIL);
+            userRep.setEnabled(true);
 
             // Mock the private method retrieveUserRepresentationById
             UserManagementService spyService = spy(userManagementService);
@@ -213,6 +209,7 @@ class UserManagementServiceTests {
             // Given
             UserRepresentation userRep = new UserRepresentation();
             userRep.setId(TEST_USER_ID);
+            userRep.setEnabled(true);
 
             UserManagementService spyService = spy(userManagementService);
             doReturn(userRep).when(spyService).retrieveUserRepresentationById(TEST_USER_ID);
@@ -421,7 +418,18 @@ class UserManagementServiceTests {
             existingUser.setId(TEST_USER_ID);
             existingUser.setEmail(TEST_EMAIL);
             existingUser.setEnabled(true);
-            existingUser.setAttributes(new HashMap<>());
+            Map<String, List<String>> attributes = new HashMap<>();
+            attributes.put("pilot_role", List.of(TEST_PILOT_ROLE));
+            existingUser.setAttributes(attributes);
+
+            // Mock adminService to return a group with ORGANIZATION_ID attribute
+            GroupRepresentation defaultGroup = new GroupRepresentation();
+            defaultGroup.setId("default-group-id");
+            defaultGroup.setName("DEFAULT");
+            Map<String, List<String>> groupAttributes = new HashMap<>();
+            groupAttributes.put("ORGANIZATION_ID", List.of("default-org-id"));
+            defaultGroup.setAttributes(groupAttributes);
+            when(adminService.retrieveGroupRepresentationByName("DEFAULT")).thenReturn(defaultGroup);
 
             when(userResource.toRepresentation()).thenReturn(existingUser);
             doNothing().when(userResource).update(any(UserRepresentation.class));
@@ -429,6 +437,7 @@ class UserManagementServiceTests {
 
             UserManagementService spyService = spy(userManagementService);
             doReturn(true).when(spyService).hasValidKeycloakAttributes(any(UserDto.class));
+            doNothing().when(spyService).assignGroupsToUser(anyString(), anyString(), any(UserResource.class));
 
             // When
             spyService.updateUser(userDto);
