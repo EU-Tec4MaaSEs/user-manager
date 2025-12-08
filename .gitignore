@@ -36,4 +36,3 @@ build/
 /src/main/resources/certs/notes.txt
 kafka-truststore.jks
 .env
-/keycloak
