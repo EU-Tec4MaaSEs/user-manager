@@ -4,6 +4,7 @@ import io.micrometer.observation.annotation.Observed;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.cache.Cache;
 import org.springframework.cache.CacheManager;
+import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 
 import java.util.Collection;
@@ -45,32 +46,31 @@ public class CacheService {
     }
 
     /**
-     * Evicts multiple cache entries by their keys.
+     * Evicts multiple cache entries by their keys asynchronously.
      *
      * @param cacheName the name of the cache
      * @param keys collection of keys to evict
-     * @return True if all evicted, False if cache not found
      */
+    @Async("taskExecutor")
     @Observed(name = "cache.evict.multiple", contextualName = "evicting-multiple-cache-entries")
-    public boolean evictMultiple(String cacheName, Collection<?> keys) {
+    public void evictMultiple(String cacheName, Collection<?> keys) {
         Cache cache = getCache(cacheName);
         if (cache == null) {
             log.warn("Cache '{}' not found, skipping eviction for {} keys", cacheName, keys.size());
-            return false;
+            return;
         }
         for (Object key : keys) {
             if (key != null)
                 cache.evictIfPresent(key);
         }
-
-       return true;
     }
 
     /**
-     * Clears all entries from a specific cache.
+     * Clears all entries from a specific cache asynchronously.
      *
      * @param cacheName the name of the cache to clear
      */
+    @Async("taskExecutor")
     @Observed(name = "cache.clear", contextualName = "clearing-cache")
     public void clearCache(String cacheName) {
         Cache cache = getCache(cacheName);
@@ -84,14 +84,15 @@ public class CacheService {
     }
 
     /**
-     * Evicts user-related caches when user data changes.
+     * Evicts user-related caches when user data changes asynchronously.
      * Handles complex multi-key eviction patterns for user cache.
      *
      * @param userId the user ID
-     * @param pilotCode the pilot code (can be null)
-     * @param userRole the user role (can be null)
-     * @param pilotRole the pilot role (can be null)
+     * @param pilotCode the pilot code (can be null, should be normalized)
+     * @param userRole the user role (can be null, should be normalized)
+     * @param pilotRole the pilot role (can be null, should be normalized)
      */
+    @Async("taskExecutor")
     @Observed(name = "cache.evict.user", contextualName = "evicting-user-caches")
     public void evictUserCaches(String userId, String pilotCode, String userRole, String pilotRole) {
         // Always evict user by ID
@@ -123,29 +124,30 @@ public class CacheService {
     }
 
     /**
-     * Evicts legacy user cache entries when user attributes change (Used commonly in Update Method)
+     * Evicts legacy user cache entries when user attributes change asynchronously (Used commonly in Update Method)
      *
-     * @param oldPilotCode the previous pilot code
-     * @param oldUserRole the previous user role
-     * @param oldPilotRole the previous pilot role
-     * @param newPilotCode the new pilot code (optional)
-     * @param newUserRole the new user role (optional)
-     * @param newPilotRole the new pilot role (optional)
+     * @param userId the user ID
+     * @param oldPilotCode the previous pilot code (should be normalized)
+     * @param oldUserRole the previous user role (should be normalized)
+     * @param oldPilotRole the previous pilot role (should be normalized)
+     * @param newPilotCode the new pilot code (optional, should be normalized)
+     * @param newUserRole the new user role (optional, should be normalized)
+     * @param newPilotRole the new pilot role (optional, should be normalized)
      */
+    @Async("taskExecutor")
     @Observed(name = "cache.evict.legacy-user", contextualName = "evicting-legacy-user-caches")
     public void evictLegacyUserCaches(String userId, String oldPilotCode, String oldUserRole, String oldPilotRole,
                                       String newPilotCode, String newUserRole, String newPilotRole) {
 
         // Check if values actually changed
-        boolean pilotCodeChanged = !Objects.equals(oldPilotCode, newPilotCode);
-        boolean userRoleChanged = !Objects.equals(oldUserRole, newUserRole);
-        boolean pilotRoleChanged = !Objects.equals(oldPilotRole, newPilotRole);
+        boolean pilotCodeChanged = !Objects.equals(oldPilotCode, newPilotCode) && newPilotCode != null;
+        boolean userRoleChanged = !Objects.equals(oldUserRole, newUserRole) && newUserRole != null;
+        boolean pilotRoleChanged = !Objects.equals(oldPilotRole, newPilotRole) && newPilotRole != null;
 
         boolean anyChange = pilotCodeChanged || userRoleChanged || pilotRoleChanged;
 
         // Early return if nothing changed
         if (!anyChange) {
-            log.debug("No user attribute changes detected, skipping cache eviction");
             return;
         }
 
@@ -155,23 +157,49 @@ public class CacheService {
             log.debug("Evicted cache for old pilot code: {}", oldPilotCode);
         }
 
+        // Evict new pilot code cache if changed
+        if (pilotCodeChanged && newPilotCode != null) {
+            evictIfPresent(USERS_CACHE, newPilotCode);
+            log.debug("Evicted cache for new pilot code: {}", newPilotCode);
+        }
+
         // Evict old user role cache if changed
         if (userRoleChanged && oldUserRole != null) {
             evictIfPresent(USERS_CACHE, oldUserRole);
-            log.debug("Evicted cache for old user role: {}", oldUserRole);
+            log.debug("Evicting OLD user role cache: '{}'", oldUserRole);
+        }
+
+        // Evict new user role cache if changed
+        if (userRoleChanged && newUserRole != null) {
+            evictIfPresent(USERS_CACHE, newUserRole);
+            log.debug("Evicting NEW user role cache: '{}'", newUserRole);
+
         }
 
         // Evict old pilot role cache if changed
         if (pilotRoleChanged && oldPilotRole != null) {
             evictIfPresent(USERS_CACHE, oldPilotRole);
-            log.debug("Evicted cache for old pilot role: {}", oldPilotRole);
+            log.debug("Evicting OLD pilot role cache: '{}'", oldPilotRole);
         }
 
-        // Evict combined key (pilotCode::userRole) if either changed
+        // Evict new pilot role cache if changed
+        if (pilotRoleChanged && newPilotRole != null) {
+            evictIfPresent(USERS_CACHE, newPilotRole);
+            log.debug("Evicting NEW pilot role cache: '{}'", newPilotRole);
+        }
+
+        // Evict old combined key (pilotCode::userRole) if either changed
         if ((pilotCodeChanged || userRoleChanged) && oldPilotCode != null && oldUserRole != null) {
             String combinedKey = buildCombinedKey(oldPilotCode, oldUserRole);
             evictIfPresent(USERS_CACHE, combinedKey);
-            log.debug("Evicted cache for combined key: {}", combinedKey);
+            log.debug("Evicting OLD combined key cache: '{}'", combinedKey);
+        }
+
+        // Evict new combined key (pilotCode::userRole) if either changed
+        if ((pilotCodeChanged || userRoleChanged) && newPilotCode != null && newUserRole != null) {
+            String combinedKey = buildCombinedKey(newPilotCode, newUserRole);
+            evictIfPresent(USERS_CACHE, combinedKey);
+            log.debug("Evicting NEW combined key cache: '{}'", combinedKey);
         }
 
         // Evict user by ID when attributes change
@@ -203,8 +231,9 @@ public class CacheService {
     }
 
     /**
-     * Evicts all entries from all caches
+     * Evicts all entries from all caches asynchronously
      */
+    @Async("taskExecutor")
     @Observed(name = "cache.clear.all", contextualName = "clearing-all-caches")
     public void clearAllCaches() {
         cacheManager.getCacheNames().forEach(cacheName -> {

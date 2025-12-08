@@ -82,10 +82,9 @@ class CacheServiceTests {
             when(usersCache.evictIfPresent(anyString())).thenReturn(true);
 
             // When
-            boolean result = cacheService.evictMultiple(CacheService.USERS_CACHE, keys);
+            cacheService.evictMultiple(CacheService.USERS_CACHE, keys);
 
             // Then
-            assertThat(result).isTrue();
             verify(usersCache, times(3)).evictIfPresent(anyString());
         }
 
@@ -97,10 +96,10 @@ class CacheServiceTests {
             Collection<String> keys = Arrays.asList("key1", "key2");
 
             // When
-            boolean result = cacheService.evictMultiple("invalid-cache", keys);
+            cacheService.evictMultiple("invalid-cache", keys);
 
             // Then
-            assertThat(result).isFalse();
+            verify(usersCache, never()).evictIfPresent(any());
         }
     }
 

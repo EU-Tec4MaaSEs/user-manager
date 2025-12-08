@@ -79,11 +79,11 @@ public class KeycloakAdminService implements IKeycloakAdminService {
     public void retrieveClientIdAfterServiceInitialization() {
         try {
             if (!shouldInitClientId) {
-                log.info("Skipping Keycloak client ID retrieval (initClientId is false)");
+                log.debug("Skipping Keycloak client ID retrieval (initClientId is false)");
                 return;
             }
             this.clientId = retrieveClientId();
-            log.info("Client ID retrieved from Keycloak and local variable initialized successfully");
+            log.debug("Client ID retrieved from Keycloak and local variable initialized successfully");
         } catch (Exception e) {
             log.error("Error retrieving client ID: {}", e.getMessage(), e);
         }
@@ -704,13 +704,8 @@ public class KeycloakAdminService implements IKeycloakAdminService {
             // Evict both isSuperAdmin keys
             @CacheEvict(value = "userRoles", key = "true"),
             @CacheEvict(value = "userRoles", key = "false"),
-            // Evict the specific userRole by name
-            @CacheEvict(value = "userRoles", key = "#updatedUserRole.getName()", condition = "#updatedUserRole.getName() != null"),
-            // Evict old attribute-based keys
-            @CacheEvict(value = "userRoles", key = "#updatedUserRole.getPilotCode()", condition = "#updatedUserRole.getPilotCode() != null", beforeInvocation = true),
-            @CacheEvict(value = "userRoles", key = "#updatedUserRole.getPilotRole()", condition = "#updatedUserRole.getPilotRole() != null", beforeInvocation = true),
-            @CacheEvict(value = "userRoles", key = "#updatedUserRole.getPilotRole() + '::' + #updatedUserRole.getPilotCode()",
-                        condition = "#updatedUserRole.getPilotRole() != null && #updatedUserRole.getPilotCode() != null", beforeInvocation = true)
+            // Evict the specific userRole by name (normalized)
+            @CacheEvict(value = "userRoles", key = "#updatedUserRole.getName()", condition = "#updatedUserRole.getName() != null")
     })
     public void updateUserRole(UserRoleDto updatedUserRole) {
         String userRole = updatedUserRole.getName();
