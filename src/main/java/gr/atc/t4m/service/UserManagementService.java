@@ -7,6 +7,14 @@ import gr.atc.t4m.dto.operations.PasswordsDto;
 import gr.atc.t4m.dto.operations.UserCreationDto;
 import gr.atc.t4m.config.properties.KeycloakProperties;
 import gr.atc.t4m.enums.OrganizationDataFields;
+import gr.atc.t4m.exception.CustomExceptions.ForbiddenAccessException;
+import gr.atc.t4m.exception.CustomExceptions.InvalidActivationAttributesException;
+import gr.atc.t4m.exception.CustomExceptions.InvalidPasswordException;
+import gr.atc.t4m.exception.CustomExceptions.InvalidRefreshTokenException;
+import gr.atc.t4m.exception.CustomExceptions.KeycloakException;
+import gr.atc.t4m.exception.CustomExceptions.ResourceAlreadyExistsException;
+import gr.atc.t4m.exception.CustomExceptions.ResourceNotPresentException;
+import gr.atc.t4m.exception.CustomExceptions.UserActivateStatusException;
 import gr.atc.t4m.service.interfaces.IEmailService;
 import gr.atc.t4m.service.interfaces.IKeycloakAdminService;
 import gr.atc.t4m.service.interfaces.IUserManagementService;
@@ -255,12 +263,19 @@ public class UserManagementService implements IUserManagementService {
             // Check if Pilot Code is altered and assign new Groups to User and change the Organization ID
             if (user.getPilotCode() != null) {
                 String currentPilotRole = determinePilotRole(user, existingUser);
+                // Ha
+                if (GLOBAL_PILOT_CODE.equals(user.getPilotCode()) && !GLOBAL_PILOT_CODE.equals(legacyUser.getPilotCode() )) {
+                    removePilotGroups(userResource);
+                    user.setOrganizationId(null);
+                }
+                else if (!GLOBAL_PILOT_CODE.equals(user.getPilotCode())) {
                 GroupRepresentation groupRepr = adminService.retrieveGroupRepresentationByName(user.getPilotCode());
 
                 String organizationId = extractOrganizationId(groupRepr, user.getPilotCode());
                 user.setOrganizationId(organizationId);
 
                 assignGroupsToUser(user.getPilotCode(), currentPilotRole, userResource);
+                }
             }
 
 
@@ -911,4 +926,15 @@ public class UserManagementService implements IUserManagementService {
         updateUser(updatedUser);
         log.debug("Activation token updated for user with ID: {}", userId);
     }
+
+    private void removePilotGroups(UserResource userResource) {
+    List<GroupRepresentation> groups = userResource.groups();
+
+    for (GroupRepresentation group : groups) {
+            log.info("leave from {}", group.getName());
+            userResource.leaveGroup(group.getId());
+    }
+  
+}
+
 }

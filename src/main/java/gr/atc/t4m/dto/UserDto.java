@@ -217,8 +217,10 @@ public class UserDto {
         if (user.getPilotRole() != null) {
             keycloakUser.getAttributes().put(PILOT_ROLE, List.of(user.getPilotRole()));
         }
-
-        if (user.getOrganizationId() != null && user.getOrganizationId().equalsIgnoreCase(DEFAULT_ORGANIZATION))
+        if (user.getOrganizationId() == null &&   SUPER_ADMIN_PILOT.equalsIgnoreCase(user.getPilotCode())) {
+            keycloakUser.getAttributes().remove(ORGANIZATION_ID);
+        }
+        else if (user.getOrganizationId() != null && user.getOrganizationId().equalsIgnoreCase(DEFAULT_ORGANIZATION))
             keycloakUser.getAttributes().remove(ORGANIZATION_ID);
         else if (user.getOrganizationId() != null)
             keycloakUser.getAttributes().put(ORGANIZATION_ID, List.of(user.getOrganizationId()));
