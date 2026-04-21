@@ -48,14 +48,26 @@ public class GlobalExceptionHandler {
 
     /*
      * Validation fails on request parameters, path variables, or method arguments
+     * Property path examples:
+     *   - Method parameter: "retrievePermissionsForOrganization.organization"
+     *   - Bean field: "organization"
+     *   - Nested field: "user.address.city"
      */
     @ExceptionHandler(ConstraintViolationException.class)
     public ResponseEntity<BaseAppResponse<Map<String, String>>> constraintValidationExceptionHandler(
             @NotNull ConstraintViolationException ex) {
         Map<String, String> errors = new HashMap<>();
-        ex.getConstraintViolations().forEach(violation ->
-                errors.put(violation.getPropertyPath().toString(), violation.getMessage())
-        );
+        ex.getConstraintViolations().forEach(violation -> {
+            // Extract the property path
+            String propertyPath = violation.getPropertyPath().toString();
+
+            // Extract only the last part after the last dot
+            String fieldName = propertyPath.contains(".")
+                ? propertyPath.substring(propertyPath.lastIndexOf('.') + 1)
+                : propertyPath;
+
+            errors.put(fieldName, violation.getMessage());
+        });
         return new ResponseEntity<>(BaseAppResponse.error(VALIDATION_ERROR, errors),
                 HttpStatus.BAD_REQUEST);
     }
@@ -183,6 +195,12 @@ public class GlobalExceptionHandler {
     public ResponseEntity<BaseAppResponse<String>> handleForbiddenAccessException(@NotNull ForbiddenAccessException ex) {
         return new ResponseEntity<>(BaseAppResponse.error("You are unauthorized to request/modify this resource", ex.getMessage()),
                 HttpStatus.FORBIDDEN);
+    }
+
+    @ExceptionHandler(InvalidInputDataException.class)
+    public ResponseEntity<BaseAppResponse<String>> handleInvalidInputDataException(@NotNull InvalidInputDataException ex) {
+        return new ResponseEntity<>(BaseAppResponse.error("Invalid input data", ex.getMessage()),
+                HttpStatus.BAD_REQUEST);
     }
 }
 

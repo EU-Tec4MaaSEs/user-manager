@@ -57,7 +57,8 @@ class KafkaMessageHandlerTests {
                 Set.of(T4mRole.PROVIDER),
                 "https://example.com/dsc",
                 "base64-encoded-credential",
-                "userId123"
+                "userId123",
+                "VN2"
         );
 
         validEvent = new EventDto(
@@ -210,7 +211,8 @@ class KafkaMessageHandlerTests {
                     Set.of(T4mRole.CONSUMER),
                     "https://example.com/dsc",
                     "base64-encoded-credential",
-                    "userId123"
+                    "userId123",
+                    "VN2"
             );
             EventDto lowerCaseEvent = new EventDto(
                     OrganizationEventType.ORGANIZATION_ONBOARDING.toString(),
@@ -244,8 +246,9 @@ class KafkaMessageHandlerTests {
                     Set.of(T4mRole.PROVIDER),                       // role
                     "https://example.com/dsc",                      // dataSpaceConnectorUrl
                     "https://example.com/credential",               // verifiableCredential
-                    "userId123"                                     // userId
-            );
+                    "userId123",                                    // userId
+                    "VN2"
+                );
             EventDto spacedEvent = new EventDto(
                     OrganizationEventType.ORGANIZATION_ONBOARDING.toString(), // type
                     "Organization registration event",              // description
@@ -298,7 +301,8 @@ class KafkaMessageHandlerTests {
                     Set.of(T4mRole.PROVIDER),
                     "https://example.com/dsc",
                     "base64-encoded-credential",
-                    "userId123"
+                    "userId123",
+                    "VN2"
             );
 
             EventDto deleteEvent = new EventDto(
@@ -331,7 +335,8 @@ class KafkaMessageHandlerTests {
                     Set.of(T4mRole.CONSUMER),
                     "https://example.com/dsc",
                     "base64-encoded-credential",
-                    "userId123"
+                    "userId123",
+                    "VN2"
             );
 
             EventDto deleteEvent = new EventDto(
@@ -367,7 +372,8 @@ class KafkaMessageHandlerTests {
                     Set.of(T4mRole.CONSUMER, T4mRole.PROVIDER),
                     "https://updated.example.com/dsc",
                     "updated-credential",
-                    "userId123"
+                    "userId123",
+                    "VN2"
             );
 
             EventDto updateEvent = new EventDto(
@@ -413,7 +419,8 @@ class KafkaMessageHandlerTests {
                     Set.of(T4mRole.PROVIDER),
                     "https://example.com/dsc",
                     "credential",
-                    "userId123"
+                    "userId123",
+                    "VN2"
             );
 
             EventDto updateEvent = new EventDto(
@@ -447,7 +454,8 @@ class KafkaMessageHandlerTests {
                     Set.of(T4mRole.PROVIDER),
                     "https://example.com/dsc",
                     "credential",
-                    "userId123"
+                    "userId123",
+                    "VN2"
             );
 
             EventDto updateEvent = new EventDto(
@@ -487,7 +495,8 @@ class KafkaMessageHandlerTests {
                     Set.of(T4mRole.PROVIDER),
                     "https://example.com/dsc",
                     "base64-encoded-credential",
-                    "userId123"
+                    "userId123",
+                    "VN2"
             );
 
             EventDto invalidEvent = new EventDto(
@@ -522,7 +531,8 @@ class KafkaMessageHandlerTests {
                     Set.of(T4mRole.PROVIDER),
                     "https://example.com/dsc",
                     "base64-encoded-credential",
-                    "userId123"
+                    "userId123",
+                    "VN2"
             );
 
             EventDto nullTypeEvent = new EventDto(

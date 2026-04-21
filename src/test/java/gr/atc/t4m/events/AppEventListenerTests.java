@@ -16,6 +16,7 @@ import java.util.Collections;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
@@ -50,7 +51,7 @@ class AppEventListenerTests {
         when(userManagementService.retrieveUsersByPilotCode(pilotName)).thenReturn(pilotUsers);
 
         // When
-        appEventListener.handleUnassignmentOfPilotFromUsers(event);
+        appEventListener.handleOrganizationDeletionEvent(event);
 
         // Then
         ArgumentCaptor<UserDto> userCaptor = ArgumentCaptor.forClass(UserDto.class);
@@ -74,7 +75,7 @@ class AppEventListenerTests {
         when(userManagementService.retrieveUsersByPilotCode(pilotName)).thenReturn(Collections.emptyList());
 
         // When
-        appEventListener.handleUnassignmentOfPilotFromUsers(event);
+        appEventListener.handleOrganizationDeletionEvent(event);
 
         // Then
         verify(userManagementService, never()).updateUser(any(UserDto.class));
@@ -93,7 +94,7 @@ class AppEventListenerTests {
         when(userManagementService.retrieveUsersByPilotCode(pilotName)).thenReturn(pilotUsers);
 
         // When
-        appEventListener.handleUnassignmentOfPilotFromUsers(event);
+        appEventListener.handleOrganizationDeletionEvent(event);
 
         // Then
         ArgumentCaptor<UserDto> userCaptor = ArgumentCaptor.forClass(UserDto.class);
@@ -120,7 +121,7 @@ class AppEventListenerTests {
         when(userManagementService.retrieveUsersByPilotCode(pilotName)).thenReturn(pilotUsers);
 
         // When
-        appEventListener.handleUnassignmentOfPilotFromUsers(event);
+        appEventListener.handleOrganizationDeletionEvent(event);
 
         // Then
         verify(userManagementService, times(3)).updateUser(any(UserDto.class));
@@ -140,7 +141,7 @@ class AppEventListenerTests {
         when(userManagementService.retrieveUsersByPilotCode(newPilotName)).thenReturn(pilotUsers);
 
         // When
-        appEventListener.handleModificationOfPilotFromUsers(nameUpdateEvent);
+        appEventListener.handleOrganizationNameUpdateEvent(nameUpdateEvent);
 
         // Then
         ArgumentCaptor<UserDto> userCaptor = ArgumentCaptor.forClass(UserDto.class);
@@ -162,7 +163,7 @@ class AppEventListenerTests {
         when(userManagementService.retrieveUsersByPilotCode(newPilotName)).thenReturn(Collections.emptyList());
 
         // When
-        appEventListener.handleModificationOfPilotFromUsers(nameUpdateEvent);
+        appEventListener.handleOrganizationNameUpdateEvent(nameUpdateEvent);
 
         // Then
         verify(userManagementService, never()).updateUser(any(UserDto.class));
@@ -181,7 +182,7 @@ class AppEventListenerTests {
         when(userManagementService.retrieveUsersByPilotCode(newPilotName)).thenReturn(pilotUsers);
 
         // When
-        appEventListener.handleModificationOfPilotFromUsers(nameUpdateEvent);
+        appEventListener.handleOrganizationNameUpdateEvent(nameUpdateEvent);
 
         // Then
         ArgumentCaptor<UserDto> userCaptor = ArgumentCaptor.forClass(UserDto.class);
@@ -207,14 +208,16 @@ class AppEventListenerTests {
         when(userManagementService.retrieveUsersByPilotCode(newPilotName)).thenReturn(pilotUsers);
 
         // When
-        appEventListener.handleModificationOfPilotFromUsers(nameUpdateEvent);
+        appEventListener.handleOrganizationNameUpdateEvent(nameUpdateEvent);
 
         // Then
         ArgumentCaptor<UserDto> userCaptor = ArgumentCaptor.forClass(UserDto.class);
         verify(userManagementService, times(3)).updateUser(userCaptor.capture());
 
         List<UserDto> updatedUsers = userCaptor.getAllValues();
-        assertThat(updatedUsers).allMatch(user -> newPilotName.equals(user.getPilotCode()));
+        assertThat(updatedUsers)
+        .hasSize(3)
+        .allMatch(user -> newPilotName.equals(user.getPilotCode()));
     }
 
     private UserDto createUserDto(String username, String pilotCode) {

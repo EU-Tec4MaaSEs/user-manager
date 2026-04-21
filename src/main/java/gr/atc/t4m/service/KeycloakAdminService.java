@@ -4,13 +4,14 @@ import gr.atc.t4m.dto.PilotDto;
 import gr.atc.t4m.dto.UserRoleDto;
 import gr.atc.t4m.dto.operations.PilotCreationDto;
 
-import static gr.atc.t4m.exception.CustomExceptions.*;
-
 import gr.atc.t4m.dto.operations.UserRoleCreationDto;
 import gr.atc.t4m.config.properties.KeycloakProperties;
 import gr.atc.t4m.enums.OrganizationDataFields;
 import gr.atc.t4m.events.OrganizationDeletionEvent;
 import gr.atc.t4m.events.OrganizationNameUpdateEvent;
+import gr.atc.t4m.exception.CustomExceptions.KeycloakException;
+import gr.atc.t4m.exception.CustomExceptions.ResourceAlreadyExistsException;
+import gr.atc.t4m.exception.CustomExceptions.ResourceNotPresentException;
 import gr.atc.t4m.service.interfaces.IKeycloakAdminService;
 import io.micrometer.observation.annotation.Observed;
 import jakarta.ws.rs.NotFoundException;
@@ -763,4 +764,22 @@ public class KeycloakAdminService implements IKeycloakAdminService {
             return null;
         }
     }
+
+/**
+ * Retrieves the 'valueNetwork' custom attribute from a Keycloak Group (Organization).
+ * * @param organizationName The name of the organization/group
+ * @return The value of the 'valueNetwork' attribute (e.g., "VN1"), or null if not found
+ */
+public String retrieveValueNetworkAttribute(String organizationName) {
+    GroupRepresentation group = retrieveGroupRepresentationByName(organizationName);
+
+    if (group == null || group.getAttributes() == null) {
+        log.warn("Organization {} not found or has no attributes", organizationName);
+        return null;
+    }
+    return Optional.ofNullable(group.getAttributes().get(OrganizationDataFields.VALUE_NETWORK.toString()))
+            .map(list -> list.get(0))
+            .orElse(null);
+
+}
 }

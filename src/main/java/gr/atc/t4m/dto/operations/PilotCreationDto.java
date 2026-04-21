@@ -57,5 +57,10 @@ public record PilotCreationDto(
                 name = "organizationId",
                 type = "String",
                 requiredMode = Schema.RequiredMode.NOT_REQUIRED)
-        String organizationId
+        String organizationId,
+        
+        @Schema(description = "The Value Network Type (e.g., VN1, VN2,VN3)",
+                example = "VN2",
+                requiredMode = Schema.RequiredMode.REQUIRED)
+        String valueNetwork
 ) {}

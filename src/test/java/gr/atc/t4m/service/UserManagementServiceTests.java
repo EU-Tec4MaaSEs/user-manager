@@ -4,7 +4,6 @@ import gr.atc.t4m.config.properties.KeycloakProperties;
 import gr.atc.t4m.dto.UserDto;
 import gr.atc.t4m.dto.operations.PasswordsDto;
 import gr.atc.t4m.dto.operations.UserCreationDto;
-import gr.atc.t4m.enums.OrganizationDataFields;
 import gr.atc.t4m.service.interfaces.IEmailService;
 import gr.atc.t4m.service.interfaces.IKeycloakAdminService;
 import jakarta.validation.ValidationException;

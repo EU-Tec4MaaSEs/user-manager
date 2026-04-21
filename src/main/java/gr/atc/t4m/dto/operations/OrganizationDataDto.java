@@ -22,5 +22,8 @@ public record OrganizationDataDto(
         String verifiableCredential,
 
         @NotBlank(message = "User ID cannot be empty")
-        String userId
+        String userId,
+
+        @NotBlank(message = "Value Network cannot be empty")
+        String valueNetwork
 ) {}

@@ -1,4 +1,4 @@
-it tservices:
+services:
   jaeger:
     image: jaegertracing/all-in-one:latest
     container_name: jaeger

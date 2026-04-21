@@ -30,7 +30,8 @@ public class CacheConfig {
                 createCacheManager("pilotRoles", cacheProperties.pilotRolesCacheTtl()),
                 createCacheManager("pilotCodes", cacheProperties.pilotCodesCacheTtl()),
                 createCacheManager("userRoles", cacheProperties.userRolesCacheTtl()),
-                createCacheManager("users", cacheProperties.usersCacheTtl())
+                createCacheManager("users", cacheProperties.usersCacheTtl()),
+                createCacheManager("permissions", cacheProperties.permissionsCacheTtl())
         );
 
         compositeCacheManager.setCacheManagers(cacheManagers);

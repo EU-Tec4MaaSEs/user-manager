@@ -173,7 +173,7 @@ class AdminControllerTests {
         void givenPilotInformation_whenCreateNewPilotInSystem_thenReturnSuccess() throws Exception {
             // Given
             PilotCreationDto pilotData = new PilotCreationDto("TEST_PILOT", "Test Pilot", List.of("ADMIN"),
-                    "https://example.com/verifiable-credential", null, "https://example.com/dsc", "mockId");
+                    "https://example.com/verifiable-credential", null, "https://example.com/dsc", "mockId","VN2");
 
             // Formulate JWT
             Jwt token = createMockJwtToken("SUPER_ADMIN", "SUPER_ADMIN", "ALL");
@@ -200,7 +200,7 @@ class AdminControllerTests {
         void givenPilotInformationAndInvalidJWT_whenCreateNewPilotInSystem_thenReturnForbidden() throws Exception {
             // Given
             PilotCreationDto pilotData = new PilotCreationDto("TEST_PILOT", "Test Pilot", List.of("ADMIN"),
-                    "https://example.com/verifiable-credential", null, "https://example.com/dsc", "mockId");
+                    "https://example.com/verifiable-credential", null, "https://example.com/dsc", "mockId", "VN2");
 
             // Mock JWT authentication
             JwtAuthenticationToken jwtAuthenticationToken = new JwtAuthenticationToken(adminJwt, List.of(new SimpleGrantedAuthority("ROLE_ADMIN")));

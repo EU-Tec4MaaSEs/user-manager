@@ -79,10 +79,13 @@ public class KafkaMessageHandler {
                     .roles(event.data().role())
                     .dataSpaceConnectorUrl(event.data().dataSpaceConnectorUrl())
                     .organizationId(organizationId)
+                    .valueNetwork(event.data().valueNetwork())
                     .build();
 
             keycloakAdminService.createPilot(newPilot);
             log.debug("Pilot created in Keycloak with name: {}", pilotName);
+
+
         } catch (KeycloakException | ResourceAlreadyExistsException e){
             log.error("Unable to create organization in Keycloak - Error: {}", e.getMessage());
             return;
@@ -121,6 +124,7 @@ public class KafkaMessageHandler {
      */
     private void handleOrganizationDeletion(String pilotName){
         keycloakAdminService.deletePilotByName(pilotName);
+
     }
 
     /**
@@ -146,8 +150,9 @@ public class KafkaMessageHandler {
             updatedPilotData.setRoles(event.data().role());
             updatedPilotData.setDataSpaceConnectorUrl(event.data().dataSpaceConnectorUrl());
             updatedPilotData.setOrganizationId(organizationId);
-
+            updatedPilotData.setValueNetwork(event.data().valueNetwork());
             keycloakAdminService.updatePilotByName(updatedPilotData, existingName);
+
         } catch (KeycloakException | ResourceAlreadyExistsException | ResourceNotPresentException e){
             log.error("Unable to update existing organization in Keycloak - Error: {}", e.getMessage());
         }
