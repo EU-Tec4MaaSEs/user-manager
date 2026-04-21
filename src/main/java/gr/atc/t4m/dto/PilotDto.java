@@ -40,6 +40,9 @@ public class PilotDto {
     @JsonProperty("dataSpaceConnectorUrl")
     private String dataSpaceConnectorUrl;
 
+    @JsonProperty("valueNetwork")
+    private String valueNetwork;
+
 
     /*
      * Helper method to convert a GroupDto to a GroupRepresentation
@@ -93,6 +96,7 @@ public class PilotDto {
         setAttributeIfPresent(attributes, OrganizationDataFields.GLOBAL_NAME.toString(),
                 pilotDto.getGlobalName());
 
+        setAttributeIfPresent(attributes,OrganizationDataFields.VALUE_NETWORK.toString(), pilotDto.getValueNetwork());
         if (!attributes.isEmpty()) {
             group.setAttributes(attributes);
         }
@@ -165,6 +169,10 @@ public class PilotDto {
             // Extract organizationId
             pilotDto.setOrganizationId(getAttributesValue(attributes,
                     OrganizationDataFields.ORGANIZATION_ID.toString()));
+
+            // Extract value network
+            pilotDto.setValueNetwork(getAttributesValue(attributes,
+                    OrganizationDataFields.VALUE_NETWORK.toString()));
         }
 
         return pilotDto;
@@ -186,6 +194,7 @@ public class PilotDto {
                 .verifiableCredential(pilotData.verifiableCredential())
                 .dataSpaceConnectorUrl(pilotData.dataSpaceConnectorUrl())
                 .organizationId(pilotData.organizationId())
+                .valueNetwork(pilotData.valueNetwork())
                 .roles(pilotData.roles())
                 .build();
     }

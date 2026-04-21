@@ -2,6 +2,7 @@ package gr.atc.t4m.events;
 
 
 import gr.atc.t4m.dto.UserDto;
+import gr.atc.t4m.service.interfaces.IPermissionService;
 import gr.atc.t4m.service.interfaces.IUserManagementService;
 import org.springframework.context.event.EventListener;
 import org.springframework.scheduling.annotation.Async;
@@ -25,7 +26,7 @@ public class AppEventListener {
 
     @EventListener
     @Async(value = "taskExecutor")
-    public void handleUnassignmentOfPilotFromUsers(OrganizationDeletionEvent appEvent) {
+    public void handleOrganizationDeletionEvent(OrganizationDeletionEvent appEvent) {
         String pilot = appEvent.getPilotName();
 
         List<UserDto> pilotUsers = userManagementService.retrieveUsersByPilotCode(pilot);
@@ -46,7 +47,7 @@ public class AppEventListener {
 
     @EventListener
     @Async(value = "taskExecutor")
-    public void handleModificationOfPilotFromUsers(OrganizationNameUpdateEvent appEvent) {
+    public void handleOrganizationNameUpdateEvent(OrganizationNameUpdateEvent appEvent) {
         String pilotName = appEvent.getPilotName();
 
         // User Groups have already been updated and thus the retrieval works with the new name

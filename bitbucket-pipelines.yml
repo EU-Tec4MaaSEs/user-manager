@@ -1,0 +1,25 @@
+image: maven:3.9.9-eclipse-temurin-21
+
+definitions:
+  steps:
+    - step: &build-step
+        name: SonarQube analysis
+        caches:
+          - maven
+          - sonar
+        script:
+          - mvn clean verify -Pcoverage
+          - mvn sonar:sonar -Dsonar.host.url=${SONAR_HOST_URL_V2025} -Dsonar.token=${SONAR_PROJECT_ANALYSIS_TOKEN} -Dsonar.projectKey=atc-code_ilab-tec4maases-user-manager_AZZm9wmkhPrqIBhKHocm -Dsonar.projectName='iLab-Tec4MaaSEs-user-manager'
+        runs-on:
+          - self.hosted
+          - ilab
+  caches:
+    sonar: ~/.sonar
+
+clone:
+  depth: full
+
+pipelines:
+  pull-requests:
+    '**': #this runs as default for any branch not elsewhere defined
+      - step: *build-step

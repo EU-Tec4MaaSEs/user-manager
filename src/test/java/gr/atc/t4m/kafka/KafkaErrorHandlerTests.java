@@ -27,7 +27,7 @@ class KafkaErrorHandlerTests {
     private KafkaErrorHandler kafkaErrorHandler;
 
     @Mock
-    private Message<?> message;
+    private Message<String> message;
 
     @Mock
     private Consumer<?, ?> consumer;
@@ -132,8 +132,7 @@ class KafkaErrorHandlerTests {
     void givenComplexObjectPayload_whenHandleError_thenReturnNull() {
         // Given
         TestMessagePayload complexPayload = new TestMessagePayload("test", 123);
-        when(message.getPayload()).thenReturn(complexPayload);
-        
+        doReturn(complexPayload).when(message).getPayload();        
         RuntimeException cause = new RuntimeException("Processing error");
         ListenerExecutionFailedException exception = new ListenerExecutionFailedException("Error", cause);
         

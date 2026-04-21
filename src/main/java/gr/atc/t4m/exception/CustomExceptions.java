@@ -65,4 +65,10 @@ public class CustomExceptions {
     public static class ForbiddenAccessException extends RuntimeException{
         public ForbiddenAccessException(String message) { super(message); }
     }
+
+    public static class InvalidInputDataException extends RuntimeException{
+        public InvalidInputDataException(String message) {
+            super(message);
+        }
+    }
 }
