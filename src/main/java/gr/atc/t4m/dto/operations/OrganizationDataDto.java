@@ -24,6 +24,5 @@ public record OrganizationDataDto(
         @NotBlank(message = "User ID cannot be empty")
         String userId,
 
-        @NotBlank(message = "Value Network cannot be empty")
         String valueNetwork
 ) {}
