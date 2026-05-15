@@ -122,9 +122,29 @@ public class KafkaMessageHandler {
      *
      * @param pilotName : Formatted Pilot Name
      */
-    private void handleOrganizationDeletion(String pilotName){
-        keycloakAdminService.deletePilotByName(pilotName);
-    }
+
+   private void handleOrganizationDeletion(String pilotName) {
+     log.debug("Starting decommissioning process for pilot: {}", pilotName);
+    
+     try {
+        List<UserDto> usersToReset = userManagementService.retrieveUsersByPilotCode(pilotName);
+        
+        if (!usersToReset.isEmpty()) {
+            log.info("Resetting {} users associated with pilot: {}", usersToReset.size(), pilotName);
+            for (UserDto user : usersToReset) {
+                user.setPilotCode(DEFAULT_PILOT);
+                user.setOrganizationId(DEFAULT_PILOT);
+                userManagementService.updateUser(user);
+                log.debug("User {} reset to DEFAULT", user.getUsername());
+            }
+        }
+     } catch (Exception e) {
+        log.error("Error during user reset for pilot {}: {}", pilotName, e.getMessage());
+     }
+
+     keycloakAdminService.deletePilotByName(pilotName);
+     log.info("Pilot '{}' and its associations have been removed.", pilotName);
+   }
 
     /**
      * Handle Update of an existing Organization in Keycloak
