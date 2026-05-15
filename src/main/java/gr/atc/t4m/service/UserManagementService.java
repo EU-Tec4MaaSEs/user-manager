@@ -39,6 +39,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
+import java.util.Collections;
 
 import static gr.atc.t4m.exception.CustomExceptions.*;
 
@@ -242,63 +243,67 @@ public class UserManagementService implements IUserManagementService {
      * @throws ValidationException         : When input data are invalid (do not exist in Keycloak)
      * @throws KeycloakException           : When a Keycloak communication error occurs
      */
-    @Observed(name = "user.update", contextualName = "updating-user")
-    @Override
-    public void updateUser(UserDto user) {
-        if (!hasValidKeycloakAttributes(user))
-            throw new ValidationException("Some of the input data are not present in Keycloak (Pilot Role, Pilot Code, User Role)");
+  @Observed(name = "user.update", contextualName = "updating-user")
+@Override
+public void updateUser(UserDto user) {
+    if (!hasValidKeycloakAttributes(user))
+        throw new ValidationException("Some of the input data are not present in Keycloak (Pilot Role, Pilot Code, User Role)");
 
-        try {
+    try {
             UserResource userResource = keycloak.realm(realm)
                     .users()
                     .get(user.getUserId());
 
-            UserRepresentation existingUser = userResource.toRepresentation();
-            if (existingUser == null)
-                throw new ResourceNotPresentException("User with ID: " + user.getUserId() + " not found");
+        UserRepresentation existingUser = userResource.toRepresentation();
+        if (existingUser == null)
+            throw new ResourceNotPresentException("User with ID: " + user.getUserId() + " not found");
 
             // Capture legacy user data before update (for cache eviction)
-            UserDto legacyUser = UserDto.fromUserRepresentation(existingUser);
+        UserDto legacyUser = UserDto.fromUserRepresentation(existingUser);
 
             // Check if Pilot Code is altered and assign new Groups to User and change the Organization ID
-            if (user.getPilotCode() != null) {
-                String currentPilotRole = determinePilotRole(user, existingUser);
-                // Ha
-                if (GLOBAL_PILOT_CODE.equals(user.getPilotCode()) && !GLOBAL_PILOT_CODE.equals(legacyUser.getPilotCode() )) {
-                    removePilotGroups(userResource);
-                    user.setOrganizationId(null);
-                }
-                else if (!GLOBAL_PILOT_CODE.equals(user.getPilotCode())) {
+        if (user.getPilotCode() != null) {
+            String currentPilotRole = determinePilotRole(user, existingUser);
+
+            if (GLOBAL_PILOT_CODE.equals(user.getPilotCode()) && !user.getPilotCode().equals(legacyUser.getPilotCode())) {
+                removePilotGroups(userResource);
+                user.setOrganizationId(null); 
+            }
+            else if (DEFAULT_PILOT.equals(user.getPilotCode()) && !user.getPilotCode().equals(legacyUser.getPilotCode())) {
+                removePilotGroups(userResource);
+                user.setOrganizationId(DEFAULT_PILOT); 
+            }
+            else if (!GLOBAL_PILOT_CODE.equals(user.getPilotCode()) && !DEFAULT_PILOT.equals(user.getPilotCode())) {
                 GroupRepresentation groupRepr = adminService.retrieveGroupRepresentationByName(user.getPilotCode());
 
                 String organizationId = extractOrganizationId(groupRepr, user.getPilotCode());
                 user.setOrganizationId(organizationId);
 
                 assignGroupsToUser(user.getPilotCode(), currentPilotRole, userResource);
-                }
             }
+        }
 
-
-            userResource.update(UserDto.toUserRepresentation(user, existingUser));
-            log.debug("User '{}' updated successfully", user.getUserId());
+        
+        userResource.update(UserDto.toUserRepresentation(user, existingUser));
+        log.debug("User '{}' updated successfully", user.getUserId());
 
             // Evict Caches (normalized values)
-            cacheService.evictLegacyUserCaches(
-                    user.getUserId(),
-                    StringNormalizationUtils.normalize(legacyUser.getPilotCode()),
-                    StringNormalizationUtils.normalize(legacyUser.getUserRole()),
-                    StringNormalizationUtils.normalize(legacyUser.getPilotRole()),
-                    StringNormalizationUtils.normalize(user.getPilotCode()),
-                    StringNormalizationUtils.normalize(user.getUserRole()),
-                    StringNormalizationUtils.normalize(user.getPilotRole())
-            );
-        } catch (ResourceNotPresentException e) {
-            throw e;
-        } catch (Exception e) {
-            log.error("Error updating user {}: {}", user.getUserId(), e.getMessage(), e);
-            throw new KeycloakException("Error updating user with id = " + user.getUserId(), e);
-        }
+        cacheService.evictLegacyUserCaches(
+                user.getUserId(),
+                StringNormalizationUtils.normalize(legacyUser.getPilotCode()),
+                StringNormalizationUtils.normalize(legacyUser.getUserRole()),
+                StringNormalizationUtils.normalize(legacyUser.getPilotRole()),
+                StringNormalizationUtils.normalize(user.getPilotCode()),
+                StringNormalizationUtils.normalize(user.getUserRole()),
+                StringNormalizationUtils.normalize(user.getPilotRole())
+        );
+    } catch (ResourceNotPresentException e) {
+        throw e;
+    } catch (Exception e) {
+        log.error("Error updating user {}: {}", user.getUserId(), e.getMessage(), e);
+        throw new KeycloakException("Error updating user with id = " + user.getUserId(), e);
     }
+}
 
     /*
      * Helper method to determine the Pilot Role
@@ -373,14 +378,15 @@ public class UserManagementService implements IUserManagementService {
         }
 
         // Check valid pilot code but omit this check for Global Code of Super Admin
-        if (user.getPilotCode() != null && !user.getPilotCode().equals(GLOBAL_PILOT_CODE)) {
+        if (user.getPilotCode() != null && !user.getPilotCode().equals(GLOBAL_PILOT_CODE)&& 
+          !user.getPilotCode().equals(DEFAULT_PILOT)) {
             List<String> pilots = adminService.retrieveAllPilotCodes();
             boolean validPilotCode = pilots.contains(StringNormalizationUtils.normalize(user.getPilotCode()));
             if (!validPilotCode) return false;
         }
 
-        if (user.getPilotRole() != null) {
-            return adminService.retrieveAllPilotRoles(true)
+        if (user.getPilotRole() != null && !DEFAULT_PILOT.equals(user.getPilotCode())) {        
+                return adminService.retrieveAllPilotRoles(true)
                     .contains(StringNormalizationUtils.normalize(user.getPilotRole()));
         }
 
@@ -423,8 +429,10 @@ public class UserManagementService implements IUserManagementService {
     @Cacheable(value = "users", key = "#pilotCode")
     public List<UserDto> retrieveUsersByPilotCode(String pilotCode) {
         GroupRepresentation existingGroupRepresentation = adminService.retrieveGroupRepresentationByName(pilotCode);
-        if (existingGroupRepresentation == null)
-            throw new ResourceNotPresentException("Pilot code: '" + pilotCode + "' not found");
+        if (existingGroupRepresentation == null){
+          log.warn("Pilot code group '{}' not found. It may have been already deleted.", pilotCode);
+        return Collections.emptyList();
+      }
 
         try {
             return keycloak.realm(realm)

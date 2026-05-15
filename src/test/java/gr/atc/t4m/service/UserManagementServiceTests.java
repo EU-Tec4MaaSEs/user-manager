@@ -404,48 +404,39 @@ class UserManagementServiceTests {
         }
 
         @DisplayName("Update User : With DEFAULT Code")
-        @Test
-        void givenUserWithRemovePilotCode_whenUpdateUser_thenNoGroupsAssigned() {
-            // Given
-            UserDto userDto = new UserDto();
-            userDto.setUserId(TEST_USER_ID);
-            userDto.setPilotCode("DEFAULT");
-            userDto.setPilotRole(TEST_PILOT_ROLE);
-            userDto.setEmail(TEST_EMAIL);
+@Test
+void givenUserWithDefaultPilotCode_whenUpdateUser_thenGroupsAreRemovedButNotAssigned() {
+    // Given
+    UserDto userDto = new UserDto();
+    userDto.setUserId(TEST_USER_ID);
+    userDto.setPilotCode("DEFAULT"); // This matches DEFAULT_PILOT
+    userDto.setPilotRole(TEST_PILOT_ROLE);
+    userDto.setEmail(TEST_EMAIL);
 
-            UserRepresentation existingUser = new UserRepresentation();
-            existingUser.setId(TEST_USER_ID);
-            existingUser.setEmail(TEST_EMAIL);
-            existingUser.setEnabled(true);
-            Map<String, List<String>> attributes = new HashMap<>();
-            attributes.put("pilot_role", List.of(TEST_PILOT_ROLE));
-            existingUser.setAttributes(attributes);
+    UserRepresentation existingUser = new UserRepresentation();
+    existingUser.setId(TEST_USER_ID);
+    existingUser.setEmail(TEST_EMAIL);
+    existingUser.setEnabled(true);
+    
+    Map<String, List<String>> attributes = new HashMap<>();
+    attributes.put("pilot_code", List.of("SOME_PILOT")); 
+    existingUser.setAttributes(attributes);
 
-            // Mock adminService to return a group with ORGANIZATION_ID attribute
-            GroupRepresentation defaultGroup = new GroupRepresentation();
-            defaultGroup.setId("default-group-id");
-            defaultGroup.setName("DEFAULT");
-            Map<String, List<String>> groupAttributes = new HashMap<>();
-            groupAttributes.put("ORGANIZATION_ID", List.of("default-org-id"));
-            defaultGroup.setAttributes(groupAttributes);
-            when(adminService.retrieveGroupRepresentationByName("DEFAULT")).thenReturn(defaultGroup);
+    when(userResource.toRepresentation()).thenReturn(existingUser);
+    when(usersResource.get(TEST_USER_ID)).thenReturn(userResource);
 
-            when(userResource.toRepresentation()).thenReturn(existingUser);
-            doNothing().when(userResource).update(any(UserRepresentation.class));
-            when(usersResource.get(TEST_USER_ID)).thenReturn(userResource);
+    UserManagementService spyService = spy(userManagementService);
+    doReturn(true).when(spyService).hasValidKeycloakAttributes(any(UserDto.class));
 
-            UserManagementService spyService = spy(userManagementService);
-            doReturn(true).when(spyService).hasValidKeycloakAttributes(any(UserDto.class));
-            doNothing().when(spyService).assignGroupsToUser(anyString(), anyString(), any(UserResource.class));
+    // When
+    spyService.updateUser(userDto);
 
-            // When
-            spyService.updateUser(userDto);
-
-            // Then
-            verify(usersResource).get(TEST_USER_ID);
-            verify(userResource).update(any(UserRepresentation.class));
-            verify(spyService).assignGroupsToUser(anyString(), anyString(), any(UserResource.class));
-        }
+    // Then
+    verify(userResource).update(any(UserRepresentation.class));
+    
+    verify(spyService, never()).assignGroupsToUser(anyString(), anyString(), any(UserResource.class));
+    
+}
 
         @DisplayName("Update User : User Not Found")
         @Test
@@ -1565,12 +1556,15 @@ class UserManagementServiceTests {
 
         @DisplayName("Retrieve Users by Pilot Code : Not Found")
         @Test
-        void givenInvalidPilotCode_whenRetrieveUsers_thenThrowResourceNotPresentException() {
+        void givenInvalidPilotCode_whenRetrieveUsers() {
             // Given
             when(adminService.retrieveGroupRepresentationByName(anyString())).thenReturn(null);
             // When & Then
-            assertThrows(ResourceNotPresentException.class,
-                    () -> userManagementService.retrieveUsersByPilotCode(TEST_PILOT_CODE));
+            // assertThrows(ResourceNotPresentException.class,
+            //         () -> userManagementService.retrieveUsersByPilotCode(TEST_PILOT_CODE));
+
+            List<UserDto> results = userManagementService.retrieveUsersByPilotCode(TEST_PILOT_CODE);
+            assertTrue(results.isEmpty());
         }
 
         @DisplayName("Retrieve Users by Pilot Code and User Role : Success")
