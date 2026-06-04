@@ -396,4 +396,62 @@ public class AdminController {
 
         return new ResponseEntity<>(BaseAppResponse.success(null, "All caches cleared successfully"), HttpStatus.OK);
     }
+@Operation(
+        summary = "Retrieve organizational verifiable credential by pilot code",
+        description = "Fetches the raw, encoded Verifiable Credential (VC) string associated with the pilot's organization from Keycloak. " +
+                      "Accessible by SUPER_ADMIN or users/admins belonging to the same organization.",
+        security = @SecurityRequirement(name = "bearerToken")
+    )
+    @ApiResponses(value = {
+        @ApiResponse(
+            responseCode = "200", 
+            description = "Organization verifiable credential retrieved successfully"),
+        @ApiResponse(
+            responseCode = "400", 
+            description = "Bad Request - Cannot request credentials for the default system pilot representation"),
+        @ApiResponse(
+            responseCode = "401", 
+            description = "Unauthorized - Missing or invalid JWT token"),
+        @ApiResponse(
+            responseCode = "403", 
+            description = "Forbidden - User does not have permission to view this pilot's organizational data"),
+        @ApiResponse(
+            responseCode = "404", 
+            description = "Not Found - Pilot not found, or organization does not have a VC attached"
+        )
+    })
+    @GetMapping("/pilots/{pilotCode}/verifiable-credentials")
+    public ResponseEntity<BaseAppResponse<String>> retrieveOrgCredentialsByPilot(
+            @Parameter(description = "The unique code identifier of the pilot", example = "TEKNIKER")
+            @PathVariable String pilotCode) {
+        
+        String normalizedPilotCode = StringNormalizationUtils.normalize(pilotCode);
+
+        if (DEFAULT_PILOT.equals(normalizedPilotCode)) {
+            return new ResponseEntity<>(
+                BaseAppResponse.error("Default organization credentials cannot be retrieved directly"), 
+                HttpStatus.BAD_REQUEST
+            );
+        }
+
+        if (!jwtContext.isSuperAdmin()) {
+            UserDto user = jwtContext.getCurrentUser(); 
+            
+            boolean isOwnPilot = StringNormalizationUtils.normalizedEquals(user.getPilotCode(), normalizedPilotCode);
+            
+            if (!isOwnPilot) {
+                return new ResponseEntity<>(
+                    BaseAppResponse.error("You are not authorized to view information for this pilot"), 
+                    HttpStatus.FORBIDDEN
+                );
+            }
+        }
+        
+        String rawVc = adminService.getCredentialByPilotCode(normalizedPilotCode);
+        
+        return new ResponseEntity<>(
+            BaseAppResponse.success(rawVc, "Organization verifiable credential retrieved successfully"), 
+            HttpStatus.OK
+        );
+    }
 }

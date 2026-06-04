@@ -782,4 +782,30 @@ public String retrieveValueNetworkAttribute(String organizationName) {
             .orElse(null);
 
 }
+
+    /**
+     * Retrieves the raw  verifiable credential string associated with a specific pilot code.
+     *
+     * @param pilotCode The unique code matching the target group name
+     * @return The raw encoded Verifiable Credential string representation
+     * @throws ResourceNotPresentException If the pilot group cannot be found or the credential attribute is empty
+     */
+    @Override
+    public String getCredentialByPilotCode(String pilotCode) {
+        GroupRepresentation groupRepresentation = retrieveGroupRepresentationByName(pilotCode);
+        
+        if (groupRepresentation == null) {
+            throw new ResourceNotPresentException("Pilot representation group not found for code: " + pilotCode);
+        }
+
+        PilotDto pilotDto = PilotDto.fromGroupRepresentation(groupRepresentation);
+
+        String credential = pilotDto.getVerifiableCredential();
+
+        if (credential == null || credential.isBlank()) {
+            throw new ResourceNotPresentException("No verifiable credential associated with the organization of pilot: " + pilotCode);
+        }
+
+        return credential;
+    }
 }

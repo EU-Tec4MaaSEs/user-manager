@@ -16,6 +16,8 @@ public interface IKeycloakAdminService {
      ---------------------*/
     List<String> retrieveAllPilotCodes();
 
+    String getCredentialByPilotCode(String pilotCode);
+
     GroupRepresentation retrieveGroupRepresentationByName(String groupName);
 
     GroupRepresentation retrieveGroupRepresentationByOrganizationId(String organizationId);
