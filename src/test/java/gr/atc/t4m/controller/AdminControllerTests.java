@@ -78,6 +78,8 @@ class AdminControllerTests {
     private static Jwt adminJwt;
     private static Jwt userJwt;
 
+    private static final String PILOTS_VC_URL = "/api/admin/pilots/{pilotCode}/verifiable-credentials";
+    private static final String TEKNIKER ="TEKNIKER";
     @BeforeAll
     static void setup() {
         superAdminJwt = createMockJwtToken("SUPER_ADMIN", "SUPER_ADMIN", "ALL");
@@ -728,4 +730,101 @@ class AdminControllerTests {
                 claims
         );
     }
+
+        @DisplayName("Get Verifiable Credentials: Success as Super Admin")
+        @Test
+        void givenUserWithoutSuperAdminRoleWhenGetAllUserRolesThenReturnForbidden() throws Exception {
+            String pilotCode = TEKNIKER;
+            String mockVc = "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.mockCredentialPayload...";
+            
+            given(jwtContext.isSuperAdmin()).willReturn(true);
+            given(adminService.getCredentialByPilotCode(anyString())).willReturn(mockVc);
+
+            JwtAuthenticationToken jwtAuthenticationToken = new JwtAuthenticationToken(superAdminJwt,
+                    List.of(new SimpleGrantedAuthority("ROLE_SUPER_ADMIN")));
+            SecurityContextHolder.getContext().setAuthentication(jwtAuthenticationToken);
+
+            ResultActions response = mockMvc.perform(get(PILOTS_VC_URL, pilotCode)
+                    .contentType(MediaType.APPLICATION_JSON));
+
+            response.andExpect(status().isOk())
+                    .andExpect(jsonPath("$.success", is(true)))
+                    .andExpect(jsonPath("$.message", is("Organization verifiable credential retrieved successfully")))
+                    .andExpect(jsonPath("$.data", is(mockVc)));
+        }
+
+        @DisplayName("Get Verifiable Credentials: Success as Pilot fetching own context")
+        @Test
+        void givenValidPilotJwtwhenGetOwnVerifiableCredentialsthenReturnSuccess() throws Exception {
+            String pilotCode = TEKNIKER;
+            String mockVc = "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.mockCredentialPayload...";
+
+            UserDto targetUser = UserDto.builder()
+                    .userId("pilotUserId")
+                    .email("pilot@atc.gr")
+                    .pilotCode(pilotCode)
+                    .build();
+
+            given(jwtContext.isSuperAdmin()).willReturn(false);
+            given(jwtContext.getCurrentUser()).willReturn(targetUser);
+            given(adminService.getCredentialByPilotCode(anyString())).willReturn(mockVc);
+
+            JwtAuthenticationToken jwtAuthenticationToken = new JwtAuthenticationToken(userJwt,
+                    List.of(new SimpleGrantedAuthority("ROLE_USER")));
+            SecurityContextHolder.getContext().setAuthentication(jwtAuthenticationToken);
+
+            ResultActions response = mockMvc.perform(get(PILOTS_VC_URL, pilotCode)
+                    .contentType(MediaType.APPLICATION_JSON));
+
+            response.andExpect(status().isOk())
+                    .andExpect(jsonPath("$.success", is(true)))
+                    .andExpect(jsonPath("$.data", is(mockVc)));
+        }
+
+        @DisplayName("Get Verifiable Credentials: Forbidden for pilot accessing different profile")
+        @Test
+        void givenPilotJwtwhenGetDifferentVerifiableCredentialsthenReturnForbidden() throws Exception {
+            String requestedPilotCode = TEKNIKER;
+            
+            UserDto maliciousUser = UserDto.builder()
+                    .userId("attackerId")
+                    .email("user@atc.gr")
+                    .pilotCode("DIFFERENT_CODE")
+                    .build();
+
+            given(jwtContext.isSuperAdmin()).willReturn(false);
+            given(jwtContext.getCurrentUser()).willReturn(maliciousUser);
+
+            JwtAuthenticationToken jwtAuthenticationToken = new JwtAuthenticationToken(userJwt,
+                    List.of(new SimpleGrantedAuthority("ROLE_USER")));
+            SecurityContextHolder.getContext().setAuthentication(jwtAuthenticationToken);
+
+            ResultActions response = mockMvc.perform(get(PILOTS_VC_URL, requestedPilotCode)
+                    .contentType(MediaType.APPLICATION_JSON));
+
+            response.andExpect(status().isForbidden())
+                    .andExpect(jsonPath("$.success", is(false)))
+                    .andExpect(jsonPath("$.message", is("You are not authorized to view information for this pilot")));
+            
+            verify(adminService, never()).getCredentialByPilotCode(anyString());
+        }
+
+        @DisplayName("Get Verifiable Credentials: Bad Request for system DEFAULT identifier")
+        @Test
+        void givenAnyAuthenticatedUserwhenGetDefaultPilotCredentialsthenReturnBadRequest() throws Exception {
+            String defaultPilotCode = "DEFAULT";
+
+            JwtAuthenticationToken jwtAuthenticationToken = new JwtAuthenticationToken(superAdminJwt,
+                    List.of(new SimpleGrantedAuthority("ROLE_SUPER_ADMIN")));
+            SecurityContextHolder.getContext().setAuthentication(jwtAuthenticationToken);
+
+            ResultActions response = mockMvc.perform(get(PILOTS_VC_URL, defaultPilotCode)
+                    .contentType(MediaType.APPLICATION_JSON));
+
+            response.andExpect(status().isBadRequest())
+                    .andExpect(jsonPath("$.success", is(false)))
+                    .andExpect(jsonPath("$.message", is("Default organization credentials cannot be retrieved directly")));
+            
+            verify(adminService, never()).getCredentialByPilotCode(anyString());
+        }
 }
